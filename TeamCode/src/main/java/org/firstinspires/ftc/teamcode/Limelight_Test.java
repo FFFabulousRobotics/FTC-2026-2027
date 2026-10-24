@@ -10,40 +10,23 @@ import com.qualcomm.robotcore.hardware.IMU;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
-@TeleOp(name = "Limelight (Original)", group = "Test")
-public class Limelight_Original extends OpMode {
-    private Limelight3A limelight;
-    private IMU imu;
+/*Limelight_Test仅作为测试limelight是否在正常且正确地工作的工具*/
+@TeleOp(name = "Limelight (Test)", group = "Test")
+public class Limelight_Test extends OpMode {
+    private Limelight vision;
 
-    @Override
-    public void init() {
-        limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(0);//如果limelight内置界面内选择允许Switch须加上这一行(0是我调好的apriltag，可以直接用，1是color/retroreflective)
-        imu = hardwareMap.get(IMU.class, "imu");
-        RevHubOrientationOnRobot revHubOrientationOnRobot = new RevHubOrientationOnRobot(
-                RevHubOrientationOnRobot.LogoFacingDirection.UP,
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD);
-        imu.initialize(new IMU.Parameters(revHubOrientationOnRobot));
-    }
+    @Override public void init()  { vision = new Limelight(this); }
+    @Override public void start() { vision.start(); }
 
-    @Override
-    public void start() {
-        limelight.start();
-    }
-
-    @Override
-    public void loop() {
-        YawPitchRollAngles orientation = imu.getRobotYawPitchRollAngles();
-        limelight.updateRobotOrientation(orientation.getYaw());
-        LLResult llResult = limelight.getLatestResult();
-        if (llResult != null && llResult.isValid()) {
-            Pose3D botPose = llResult.getBotpose_MT2();
-            telemetry.addData("Target X", llResult.getTx());
-            telemetry.addData("Target Y", llResult.getTy());
-            telemetry.addData("Target Area", llResult.getTa());
-            telemetry.addData("Bot Pose", botPose.toString());
-            telemetry.addData("YAW", botPose.getOrientation().getYaw());
-            telemetry.update();
+    @Override public void loop() {
+        vision.update();
+        telemetry.addData("Tag", vision.getTagId());
+        if (vision.ishasTarget()) {
+            telemetry.addData("X", vision.getTx());
+            telemetry.addData("Y", vision.getTy());
+        } else {
+            telemetry.addData("状态", "未捕获目标");
         }
+        telemetry.update();
     }
 }
