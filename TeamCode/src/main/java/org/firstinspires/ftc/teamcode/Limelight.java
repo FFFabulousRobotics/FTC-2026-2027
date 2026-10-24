@@ -45,9 +45,11 @@ public class Limelight{
             ty = r.getTy();
             ta = r.getTa();
             botPose = r.getBotpose_MT2();//包含机器人在场地里的 x, y, z 和 yaw/pitch/roll,但这个玩意不是相对位置，而是通过apirltag在场上的固定位置计算出其场地坐标，因此没什么用，本赛季主要是通过识别apriltag来判断蜂巢状态
+            List<LLResultTypes.FiducialResult> tags = r.getFiducialResults();//创建一个列表变量，把这一帧画面中识别到的apriltag放入一个列表
+            tagId = (tags != null && !tags.isEmpty()) ? tags.get(0).getFiducialId() : -1;//只输出第一个apriltagID,因为我暂时想不到如何在无法保证摄像头每一帧只识别到一个apriltag的情况下输出最恰当的apriltag编号
+        }else {
+            tagId = -1;
         }
-        List<LLResultTypes.FiducialResult> tags = r.getFiducialResults();//创建一个列表变量，把这一帧画面中识别到的apriltag放入一个列表
-        tagId = (tags != null && !tags.isEmpty()) ? tags.get(0).getFiducialId() : -1;//只输出第一个apriltagID,因为我暂时想不到如何在无法保证摄像头每一帧只识别到一个apriltag的情况下输出最恰当的apriltag编号
     }
 
     /**以下是封装类与包内其它程序连接的窗口，出于人道主义精神，不建议用同名变量
