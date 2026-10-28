@@ -13,6 +13,8 @@ import org.firstinspires.ftc.teamcode.Auto.Position;
 import org.firstinspires.ftc.teamcode.Auto.GoToPosition;
 import org.firstinspires.ftc.teamcode.Shoot;
 import org.firstinspires.ftc.teamcode.Intake;
+import org.firstinspires.ftc.teamcode.Limelight;
+import org.firstinspires.ftc.teamcode.Judge;
 
 
 
@@ -22,6 +24,9 @@ public class SingleAuto1 extends LinearOpMode {
     //declare all the hardware
     Follower follower;
     ElapsedTime time = new ElapsedTime();
+
+    Limelight limelight;
+    Judge judge = new Judge(limelight);
 
     public void initialize() {
         //hardwareMap
@@ -40,10 +45,12 @@ public class SingleAuto1 extends LinearOpMode {
             GoToPosition.garden(follower);
             intake();
             GoToPosition.shoot2(follower);
+            if(!judge.isAprilTag()) GoToPosition.shoot1(follower);
             shoot();
             GoToPosition.flower(follower);
             intake();
             GoToPosition.shoot1(follower);
+            if(!judge.isAprilTag()) GoToPosition.shoot2(follower);
             shoot();
             GoToPosition.park(follower);
         }

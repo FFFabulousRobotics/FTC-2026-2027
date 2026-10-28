@@ -30,4 +30,8 @@ public class Judge {
     public boolean isBlueRight(){
         return limelight.ishasTarget() && BLUE_RIGHT.contains(limelight.getTagId());
     }
+
+    public boolean isAprilTag(){
+        return isRedLeft() || isBlueLeft() || isRedRight() || isBlueRight();
+    }
 }
