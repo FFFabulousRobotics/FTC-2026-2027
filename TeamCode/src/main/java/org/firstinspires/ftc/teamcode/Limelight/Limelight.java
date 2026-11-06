@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.Limelight;
 
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
@@ -6,11 +6,9 @@ import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import java.util.List;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
-import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
 /**出于人道主义精神，我最终决定还是加上一些注释，毕竟我在教程里也写了一些类似的要求，比如加this关键字这些的，我自己不照着做未免有些说不过去
  * 语法部分我相信经过一个月的课程学习，已经能够轻松理解了，因此我仅对一些FTC或者limelight3a专有的变量进行说明*/

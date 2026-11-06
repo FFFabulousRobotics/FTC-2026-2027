@@ -1,18 +1,13 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.Test;
 
-import com.qualcomm.hardware.limelightvision.LLResult;
-import com.qualcomm.hardware.limelightvision.Limelight3A;
-import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.IMU;
 
-import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
-import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
+import org.firstinspires.ftc.teamcode.Limelight.Limelight;
 
 /*Limelight_Test仅作为测试limelight是否在正常且正确地工作的工具*/
-@TeleOp(name = "Limelight (Test)", group = "Test")
-public class Limelight_Test extends OpMode {
+@TeleOp(name = "Limelight Test", group = "Test")
+public class LimelightTest extends OpMode {
     private Limelight vision;
 
     @Override public void init()  { vision = new Limelight(this); }

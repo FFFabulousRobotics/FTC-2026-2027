@@ -2,53 +2,39 @@ package org.firstinspires.ftc.teamcode.Auto;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
+import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 
 
 
+/** 只下发路径，不等待到达；由 OpMode.loop() 持续更新 follower。 */
 public class GoToPosition {
     public static void shoot1(Follower follower) {
-        PathChain shoot1 = follower.pathBuilder()
-                .addPath(new BezierLine(follower.getPose(), Position.SHOOT_POSE_1))
-                .setLinearHeadingInterpolation(follower.getPose().getHeading(), Position.SHOOT_POSE_1.getHeading())
-                .build();
-        follower.followPath(shoot1);
-        while(follower.isBusy()) follower.update();
+        moveTo(follower, Position.SHOOT_POSE_1);
     }
 
     public static void shoot2(Follower follower) {
-        PathChain shoot2 = follower.pathBuilder()
-                .addPath(new BezierLine(follower.getPose(), Position.SHOOT_POSE_2))
-                .setLinearHeadingInterpolation(follower.getPose().getHeading(), Position.SHOOT_POSE_2.getHeading())
-                .build();
-        follower.followPath(shoot2);
-        while(follower.isBusy()) follower.update();
+        moveTo(follower, Position.SHOOT_POSE_2);
     }
 
     public static void flower(Follower follower) {
-        PathChain flower =  follower.pathBuilder()
-                .addPath(new BezierLine(follower.getPose(), Position.FLOWER))
-                .setLinearHeadingInterpolation(follower.getPose().getHeading(), Position.FLOWER.getHeading())
-                .build();
-        follower.followPath(flower);
-        while(follower.isBusy()) follower.update();
+        moveTo(follower, Position.FLOWER);
     }
 
     public static void garden(Follower follower) {
-        PathChain garden =  follower.pathBuilder()
-                .addPath(new BezierLine(follower.getPose(), Position.GARDEN))
-                .setLinearHeadingInterpolation(follower.getPose().getHeading(), Position.GARDEN.getHeading())
-                .build();
-        follower.followPath(garden);
-        while(follower.isBusy()) follower.update();
+        moveTo(follower, Position.GARDEN);
     }
 
     public static void park(Follower follower) {
-        PathChain park =  follower.pathBuilder()
-                .addPath(new BezierLine(follower.getPose(), Position.PARK))
-                .setLinearHeadingInterpolation(follower.getPose().getHeading(), Position.PARK.getHeading())
+        moveTo(follower, Position.PARK);
+    }
+
+    private static void moveTo(Follower follower, Pose destination) {
+        Pose start = follower.getPose();
+        PathChain path = follower.pathBuilder()
+                .addPath(new BezierLine(start, destination))
+                .setLinearHeadingInterpolation(start.getHeading(), destination.getHeading())
                 .build();
-        follower.followPath(park);
-        while(follower.isBusy()) follower.update();
+        follower.followPath(path);
     }
 }
