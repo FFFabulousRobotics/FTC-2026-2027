@@ -22,8 +22,10 @@ public class ManualMecanumDrive extends LinearOpMode {
         rightBack  = hardwareMap.get(DcMotor.class, "rb");
 
         //Reverse
-        leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
-        leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
+        leftFront.setDirection(DcMotorSimple.Direction.FORWARD);
+        leftBack.setDirection(DcMotorSimple.Direction.FORWARD);
+        rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
+        rightBack.setDirection(DcMotorSimple.Direction.FORWARD);
 
         //Brake
         leftFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
