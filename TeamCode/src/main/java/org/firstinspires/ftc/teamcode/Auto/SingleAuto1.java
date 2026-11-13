@@ -119,17 +119,21 @@ public class SingleAuto1 extends OpMode {
         state = next;
         switch (next) {
             case TO_GARDEN:
+                shoot.setGoal(Shoot.Goal.SECOND);
                 GoToPosition.garden(follower);
                 break;
             case TO_FIRST_SHOOT_2:
             case TO_SECOND_SHOOT_2:
+                shoot.setGoal(Shoot.Goal.SECOND);
                 GoToPosition.shoot2(follower);
                 break;
             case TO_FIRST_SHOOT_1:
             case TO_SECOND_SHOOT_1:
+                shoot.setGoal(Shoot.Goal.FIRST);
                 GoToPosition.shoot1(follower);
                 break;
             case TO_FLOWER:
+                shoot.setGoal(Shoot.Goal.FIRST);
                 GoToPosition.flower(follower);
                 break;
             case TO_PARK:
