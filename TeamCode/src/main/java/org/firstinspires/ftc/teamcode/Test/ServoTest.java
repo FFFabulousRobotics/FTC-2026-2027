@@ -10,14 +10,15 @@ public class ServoTest extends OpMode {
     Servo intake;
     @Override
     public void init() {
-        intake = hardwareMap.get(Servo.class, "net");
-        intake.setPosition(1.0);
+        intake = hardwareMap.get(Servo.class, "board");
+        intake.setPosition(0.1);
     }
 
     @Override
     public void loop() {
-        intake.setPosition(0.5);
+        intake.setPosition(0.3);
     }
 }
 
 //intake zero pose -> 1 , max = 0.5
+//board zero pose -> 0.1 , max = 0.3

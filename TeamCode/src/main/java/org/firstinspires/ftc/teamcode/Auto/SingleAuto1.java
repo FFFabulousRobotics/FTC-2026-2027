@@ -6,6 +6,7 @@ import com.pedropathing.follower.Follower;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
+import org.firstinspires.ftc.teamcode.GameMechanisms;
 import org.firstinspires.ftc.teamcode.Shoot;
 import org.firstinspires.ftc.teamcode.Limelight.Limelight;
 import org.firstinspires.ftc.teamcode.Limelight.Judge;
@@ -43,6 +44,7 @@ public class SingleAuto1 extends OpMode {
 
     @Override
     public void init() {
+        GameMechanisms.initServos(hardwareMap);
         state = State.IDLE;
     }
 
