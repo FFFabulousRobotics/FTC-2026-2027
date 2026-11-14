@@ -59,7 +59,7 @@ public class ManualMecanumDrive extends LinearOpMode {
         telemetry.addLine(imu == null ? "有头模式" : "无头模式：A 重设前方");
         telemetry.addLine("R1 吸取，R2 发射");
         telemetry.addLine("L1 抬升，L2 下降，松手停止");
-        telemetry.addLine("Y 切换 board，X 切换 net，B 切换 flower");
+        telemetry.addLine("按住 Y 移动 board，松开保持，再按反向；X 切换 net，B 切换 flower");
         telemetry.update();
 
         waitForStart();
@@ -69,7 +69,7 @@ public class ManualMecanumDrive extends LinearOpMode {
             liftAndNet.update(gamepad1.left_bumper, gamepad1.left_trigger > 0.1);
             if (gamepad1.xWasPressed()) liftAndNet.toggleNet();
             if (gamepad1.bWasPressed()) mechanisms.toggleFlower();
-            if (gamepad1.yWasPressed()) mechanisms.toggleBoard();
+            mechanisms.updateBoard(gamepad1.y);
 
             double y = -gamepad1.left_stick_y;
             double x = gamepad1.left_stick_x;
