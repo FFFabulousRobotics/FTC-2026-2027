@@ -12,4 +12,5 @@ public class Position {
     public static Pose GARDEN;
     public static Pose FLOWER;
     public static Pose PARK;
+    public static double MIDDLE;
 }

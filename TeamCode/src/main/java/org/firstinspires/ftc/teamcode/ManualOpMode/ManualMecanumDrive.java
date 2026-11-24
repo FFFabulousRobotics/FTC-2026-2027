@@ -8,7 +8,6 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.teamcode.GameMechanisms;
 import org.firstinspires.ftc.teamcode.LiftAndNet;
 
 @TeleOp(name = "Manual Mecanum Drive", group = "Manual")
@@ -18,7 +17,6 @@ public class ManualMecanumDrive extends LinearOpMode {
     private DcMotor leftBack;
     private DcMotor rightFront;
     private DcMotor rightBack;
-    private final GameMechanisms mechanisms = new GameMechanisms();
     private final LiftAndNet liftAndNet = new LiftAndNet();
 
     protected boolean isFieldCentric() {
@@ -44,7 +42,6 @@ public class ManualMecanumDrive extends LinearOpMode {
         leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        mechanisms.init(hardwareMap);
         liftAndNet.init(hardwareMap);
 
         IMU imu = null;
@@ -57,9 +54,8 @@ public class ManualMecanumDrive extends LinearOpMode {
 
         telemetry.addData("Status", "已初始化，等待开始");
         telemetry.addLine(imu == null ? "有头模式" : "无头模式：A 重设前方");
-        telemetry.addLine("R1 吸取，R2 发射");
         telemetry.addLine("L1 抬升，L2 下降，松手停止");
-        telemetry.addLine("按住 Y 移动 board，松开保持，再按反向；X 切换 net，B 切换 flower");
+        telemetry.addLine("X 切换 net");
         telemetry.update();
 
         waitForStart();
@@ -68,8 +64,6 @@ public class ManualMecanumDrive extends LinearOpMode {
         while (opModeIsActive()) {
             liftAndNet.update(gamepad1.left_bumper, gamepad1.left_trigger > 0.1);
             if (gamepad1.xWasPressed()) liftAndNet.toggleNet();
-            if (gamepad1.bWasPressed()) mechanisms.toggleFlower();
-            mechanisms.updateBoard(gamepad1.y);
 
             double y = -gamepad1.left_stick_y;
             double x = gamepad1.left_stick_x;
@@ -93,20 +87,11 @@ public class ManualMecanumDrive extends LinearOpMode {
             leftBack.setPower((y - x + rx) / d);
             rightBack.setPower((y + x - rx) / d);
 
-            if (gamepad1.right_trigger > 0.1) {
-                mechanisms.shoot();
-            } else if (gamepad1.right_bumper) {
-                mechanisms.intake();
-            } else {
-                mechanisms.stop();
-            }
-
             telemetry.addData("Forward y", "%.2f", y);
             telemetry.addData("Strafe x", "%.2f", x);
             telemetry.addData("Rotate rx", "%.2f", rx);
             telemetry.update();
         }
         liftAndNet.stop();
-        mechanisms.stop();
     }
 }
