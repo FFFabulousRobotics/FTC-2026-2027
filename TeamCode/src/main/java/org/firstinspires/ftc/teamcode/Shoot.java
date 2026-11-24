@@ -50,6 +50,12 @@ public class Shoot {
         gate.setPosition(gateClosedPosition);
     }
 
+    public void stop() {
+        leftflywheel.setPower(0);
+        rightflywheel.setPower(0);
+        gateClose();
+    }
+
     public static Pose target() {
         if(pp.getPosX(DistanceUnit.INCH) > Position.MIDDLE) goal = Position.SHOOT_POSE_2;
         else goal = Position.SHOOT_POSE_1;

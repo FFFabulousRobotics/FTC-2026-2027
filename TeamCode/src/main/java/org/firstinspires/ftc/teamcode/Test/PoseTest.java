@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.Test;
 
+import com.pedropathing.geometry.Pose;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -9,6 +10,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.PinpointLocalization;
 
 @TeleOp(name = "Pose Test", group = "Test")
 public class PoseTest extends OpMode {
@@ -18,6 +20,7 @@ public class PoseTest extends OpMode {
 
     private final DcMotor[] motors = new DcMotor[4];
     private GoBildaPinpointDriver pinpoint;
+    private final PinpointLocalization localization = new PinpointLocalization();
 
     @Override
     public void init() {
@@ -32,8 +35,8 @@ public class PoseTest extends OpMode {
             motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         }
 
-        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pp");
-        pinpoint.resetPosAndIMU();
+        localization.initAuto(hardwareMap, new Pose(0, 0, 0));
+        pinpoint = localization.getDriver();
     }
 
     @Override
@@ -43,6 +46,10 @@ public class PoseTest extends OpMode {
 
     @Override
     public void loop() {
+        if (!localization.isReady()) {
+            updatePoseTelemetry("保持静止，等待 Pinpoint READY");
+            return;
+        }
         if (gamepad1.aWasPressed()) {
             pinpoint.setPosition(ZERO_POSE);
         }
@@ -61,8 +68,7 @@ public class PoseTest extends OpMode {
     }
 
     private void updatePoseTelemetry(String controls) {
-        pinpoint.update();
-        Pose2D pose = pinpoint.getPosition();
+        Pose2D pose = localization.update();
         telemetry.addLine(controls);
         telemetry.addData("Pinpoint", pinpoint.getDeviceStatus());
         telemetry.addData("X (in)", "%.2f", pose.getX(DistanceUnit.INCH));

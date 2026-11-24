@@ -12,26 +12,35 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.Auto.Position;
+import org.firstinspires.ftc.teamcode.PinpointLocalization;
+import org.firstinspires.ftc.teamcode.Turret;
 
 @TeleOp(name = "Shoot Test", group = "Test")
 public class ShootTest extends OpMode {
     private static final double FINE_STEP = 50.0;
     private static final double COARSE_STEP = 200.0;
 
-    private DcMotorEx flywheel;
+    private DcMotorEx leftflywheel, rightflywheel;
+    private final PinpointLocalization localization = new PinpointLocalization();
     private GoBildaPinpointDriver pinpoint;
     private double maxVelocity;
     private double targetVelocity;
 
     @Override
     public void init() {
-        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-        flywheel.setPower(0);
-        flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        flywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        maxVelocity = flywheel.getMotorType().getAchieveableMaxTicksPerSecond();
+        leftflywheel = hardwareMap.get(DcMotorEx.class, "leftflywheel");
+        rightflywheel = hardwareMap.get(DcMotorEx.class, "rightflywheel");
+        leftflywheel.setPower(0);
+        rightflywheel.setPower(0);
+        leftflywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightflywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        leftflywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        rightflywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        maxVelocity = Math.min(leftflywheel.getMotorType().getAchieveableMaxTicksPerSecond(),
+                rightflywheel.getMotorType().getAchieveableMaxTicksPerSecond());
         targetVelocity = 0;
-        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pp");
+        localization.init(hardwareMap);
+        pinpoint = localization.getDriver();
         showTelemetry(0);
     }
 
@@ -50,28 +59,35 @@ public class ShootTest extends OpMode {
         targetVelocity = Range.clip(targetVelocity, 0, maxVelocity);
 
         double commandedVelocity = gamepad1.right_bumper ? targetVelocity : 0;
-        flywheel.setVelocity(commandedVelocity);
+        leftflywheel.setVelocity(commandedVelocity);
+        rightflywheel.setVelocity(commandedVelocity);
         showTelemetry(commandedVelocity);
     }
 
     private void showTelemetry(double commandedVelocity) {
-        pinpoint.update();
-        Pose2D pose = pinpoint.getPosition();
+        Pose2D pose = localization.update();
         double x = pose.getX(DistanceUnit.INCH);
         double y = pose.getY(DistanceUnit.INCH);
-        double measuredVelocity = flywheel.getVelocity();
+        double heading = pose.getHeading(AngleUnit.DEGREES);
+        double originX = Turret.turretX(x, heading);
+        double originY = Turret.turretY(y, heading);
+        double leftVelocity = leftflywheel.getVelocity();
+        double rightVelocity = rightflywheel.getVelocity();
         telemetry.addLine("方向键上下 ±50，左右 ±200；A 清零；按住 RB 运转");
         telemetry.addData("Pinpoint", pinpoint.getDeviceStatus());
         telemetry.addData("X (in)", "%.2f", x);
         telemetry.addData("Y (in)", "%.2f", y);
-        telemetry.addData("Heading (deg)", "%.2f", pose.getHeading(AngleUnit.DEGREES));
+        telemetry.addData("Heading (deg)", "%.2f", heading);
+        telemetry.addData("Turret pivot (in)", "%.2f, %.2f", originX, originY);
         // Position 中的射击点坐标与 Pinpoint 位姿须使用同一场地坐标系（英寸）。
-        showDistance("Distance to SHOOT_POSE_1 (in)", Position.SHOOT_POSE_1, x, y);
-        showDistance("Distance to SHOOT_POSE_2 (in)", Position.SHOOT_POSE_2, x, y);
+        showDistance("Distance to SHOOT_POSE_1 (in)", Position.SHOOT_POSE_1, originX, originY);
+        showDistance("Distance to SHOOT_POSE_2 (in)", Position.SHOOT_POSE_2, originX, originY);
         telemetry.addData("Target (ticks/s)", "%.0f", targetVelocity);
         telemetry.addData("Command (ticks/s)", "%.0f", commandedVelocity);
-        telemetry.addData("Measured (ticks/s)", "%.1f", measuredVelocity);
-        telemetry.addData("Error (ticks/s)", "%.1f", commandedVelocity - measuredVelocity);
+        telemetry.addData("Left measured (ticks/s)", "%.1f", leftVelocity);
+        telemetry.addData("Right measured (ticks/s)", "%.1f", rightVelocity);
+        telemetry.addData("Left error (ticks/s)", "%.1f", commandedVelocity - leftVelocity);
+        telemetry.addData("Right error (ticks/s)", "%.1f", commandedVelocity - rightVelocity);
         telemetry.addData("Motor max (ticks/s)", "%.0f", maxVelocity);
         telemetry.update();
     }
@@ -86,6 +102,7 @@ public class ShootTest extends OpMode {
 
     @Override
     public void stop() {
-        if (flywheel != null) flywheel.setPower(0);
+        leftflywheel.setPower(0);
+        rightflywheel.setPower(0);
     }
 }

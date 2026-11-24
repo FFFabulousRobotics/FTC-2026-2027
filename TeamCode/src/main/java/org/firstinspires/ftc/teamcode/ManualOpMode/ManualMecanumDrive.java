@@ -8,7 +8,10 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.LiftAndNet;
+import org.firstinspires.ftc.teamcode.PinpointLocalization;
 
 @TeleOp(name = "Manual Mecanum Drive", group = "Manual")
 public class ManualMecanumDrive extends LinearOpMode {
@@ -18,6 +21,7 @@ public class ManualMecanumDrive extends LinearOpMode {
     private DcMotor rightFront;
     private DcMotor rightBack;
     private final LiftAndNet liftAndNet = new LiftAndNet();
+    private final PinpointLocalization localization = new PinpointLocalization();
 
     protected boolean isFieldCentric() {
         return false;
@@ -43,6 +47,7 @@ public class ManualMecanumDrive extends LinearOpMode {
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         liftAndNet.init(hardwareMap);
+        localization.init(hardwareMap);
 
         IMU imu = null;
         if (isFieldCentric()) {
@@ -62,6 +67,7 @@ public class ManualMecanumDrive extends LinearOpMode {
         if (imu != null) imu.resetYaw();
 
         while (opModeIsActive()) {
+            Pose2D pose = localization.update();
             liftAndNet.update(gamepad1.left_bumper, gamepad1.left_trigger > 0.1);
             if (gamepad1.xWasPressed()) liftAndNet.toggleNet();
 
@@ -90,6 +96,10 @@ public class ManualMecanumDrive extends LinearOpMode {
             telemetry.addData("Forward y", "%.2f", y);
             telemetry.addData("Strafe x", "%.2f", x);
             telemetry.addData("Rotate rx", "%.2f", rx);
+            telemetry.addData("Pose (in, deg)", "%.2f, %.2f, %.1f",
+                    pose.getX(DistanceUnit.INCH), pose.getY(DistanceUnit.INCH),
+                    pose.getHeading(AngleUnit.DEGREES));
+            telemetry.addData("Pinpoint", localization.getDriver().getDeviceStatus());
             telemetry.update();
         }
         liftAndNet.stop();
