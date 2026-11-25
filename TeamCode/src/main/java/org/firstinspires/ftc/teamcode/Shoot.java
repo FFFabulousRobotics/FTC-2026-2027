@@ -5,7 +5,8 @@ import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.PwmControl;
+import com.qualcomm.robotcore.hardware.ServoImplEx;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -14,14 +15,16 @@ import org.firstinspires.ftc.robotcore.external.navigation.UnnormalizedAngleUnit
 import org.firstinspires.ftc.teamcode.Auto.Position;
 
 public class Shoot {
+    // 沿用去年 HOOD_MIN 对应的背板零位，正式程序和测试共用。
+    public static final double BOARD_INITIAL_POSITION = 0.029;
+    public static final double GATE_OPEN_POSITION = 0.74;
+    public static final double GATE_CLOSED_POSITION = 0.5;
     public static GoBildaPinpointDriver pp;
     private DcMotorEx leftflywheel, rightflywheel;
-    private Servo board;
-    private Servo gate;
+    private ServoImplEx board;
+    private ServoImplEx gate;
     private final Turret turret = new Turret();
     private final MovingShotController movingShotController = new MovingShotController();
-    private double gateClosedPosition;
-    private double gateOpenPosition;
     public static Pose goal;
 
     public void init(HardwareMap hardwareMap) {
@@ -36,18 +39,25 @@ public class Shoot {
         rightflywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         pp = hardwareMap.get(GoBildaPinpointDriver.class, "pp");
-        board = hardwareMap.get(Servo.class, "board");
-        gate = hardwareMap.get(Servo.class, "gate");
+        board = hardwareMap.get(ServoImplEx.class, "board");
+        initBoard(board);
+        gate = hardwareMap.get(ServoImplEx.class, "gate");
+        gate.setPwmRange(new PwmControl.PwmRange(500, 2500));
         gateClose();
         turret.init(hardwareMap);
     }
 
+    public static void initBoard(ServoImplEx board) {
+        board.setPwmRange(new PwmControl.PwmRange(500, 2500));
+        board.setPosition(BOARD_INITIAL_POSITION);
+    }
+
     public void gateOpen() {
-        gate.setPosition(gateOpenPosition);
+        gate.setPosition(GATE_OPEN_POSITION);
     }
 
     public void gateClose() {
-        gate.setPosition(gateClosedPosition);
+        gate.setPosition(GATE_CLOSED_POSITION);
     }
 
     public void stop() {

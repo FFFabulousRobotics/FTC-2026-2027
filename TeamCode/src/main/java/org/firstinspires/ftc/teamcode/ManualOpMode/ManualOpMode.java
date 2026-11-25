@@ -6,15 +6,18 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.LiftAndNet;
 import org.firstinspires.ftc.teamcode.PinpointLocalization;
+import org.firstinspires.ftc.teamcode.Intake;
+import org.firstinspires.ftc.teamcode.Shoot;
 
 @TeleOp(name = "Manual Mecanum Drive", group = "Manual")
-public class ManualMecanumDrive extends LinearOpMode {
+public class ManualOpMode extends LinearOpMode {
 
     private DcMotor leftFront;
     private DcMotor leftBack;
@@ -22,6 +25,11 @@ public class ManualMecanumDrive extends LinearOpMode {
     private DcMotor rightBack;
     private final LiftAndNet liftAndNet = new LiftAndNet();
     private final PinpointLocalization localization = new PinpointLocalization();
+    private Intake intake = new Intake();
+    private Shoot shoot = new Shoot();
+    private ElapsedTime timer = new ElapsedTime();
+    double shoottime;
+    boolean ONSHOOT = false;
 
     protected boolean isFieldCentric() {
         return false;
@@ -46,8 +54,13 @@ public class ManualMecanumDrive extends LinearOpMode {
         leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
         liftAndNet.init(hardwareMap);
         localization.init(hardwareMap);
+        intake.init(hardwareMap);
+        shoot.init(hardwareMap);
+        shoot.gateClose();
+
 
         IMU imu = null;
         if (isFieldCentric()) {
@@ -59,17 +72,16 @@ public class ManualMecanumDrive extends LinearOpMode {
 
         telemetry.addData("Status", "已初始化，等待开始");
         telemetry.addLine(imu == null ? "有头模式" : "无头模式：A 重设前方");
-        telemetry.addLine("L1 抬升，L2 下降，松手停止");
+        telemetry.addLine("L1 抬升，R1 下降，松手停止");
         telemetry.addLine("X 切换 net");
         telemetry.update();
 
         waitForStart();
         if (imu != null) imu.resetYaw();
+        timer.reset();
 
         while (opModeIsActive()) {
             Pose2D pose = localization.update();
-            liftAndNet.update(gamepad1.left_bumper, gamepad1.left_trigger > 0.1);
-            if (gamepad1.xWasPressed()) liftAndNet.toggleNet();
 
             double y = -gamepad1.left_stick_y;
             double x = gamepad1.left_stick_x;
@@ -101,7 +113,33 @@ public class ManualMecanumDrive extends LinearOpMode {
                     pose.getHeading(AngleUnit.DEGREES));
             telemetry.addData("Pinpoint", localization.getDriver().getDeviceStatus());
             telemetry.update();
+            shoot.update(telemetry);
+
+            if(gamepad1.rightTriggerWasPressed() && !ONSHOOT) {
+                shoottime = timer.seconds();
+                shoot.gateOpen();
+                ONSHOOT = true;
+            }
+
+            if (gamepad1.xWasPressed()) liftAndNet.toggleNet();
+            liftAndNet.update(gamepad1.left_bumper, gamepad1.right_bumper);
+
+            if(ONSHOOT) {
+                double deltatime = timer.seconds() - shoottime;
+                if((Shoot.distance() > 115 && deltatime > 0.6) || (Shoot.distance() <= 115 && deltatime > 0.55)) {
+                    intake.stop();
+                    shoot.gateClose();
+                    ONSHOOT = false;
+                }
+                else if(deltatime >= 0.2) intake.intake();
+                else if(deltatime < 0.2) intake.stop();
+            } else {
+                if (gamepad1.left_trigger_pressed) intake.intake();
+                else intake.stop();
+            }
         }
         liftAndNet.stop();
+        intake.stop();
+        shoot.stop();
     }
 }

@@ -15,7 +15,7 @@ public class Intake {
         intake.setPower(1.0);
     }
 
-    public void stopShoot() {
+    public void stop() {
         intake.setPower(0.0);
     }
 
