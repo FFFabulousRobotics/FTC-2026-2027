@@ -131,7 +131,7 @@ public class ManualOpMode extends LinearOpMode {
                     shoot.gateClose();
                     ONSHOOT = false;
                 }
-                else if(deltatime >= 0.2) intake.intake();
+                else if(deltatime >= 0.2) intake.feed();
                 else if(deltatime < 0.2) intake.stop();
             } else {
                 if (gamepad1.left_trigger_pressed) intake.intake();

@@ -71,7 +71,7 @@ public class ShootTest extends OpMode {
     public void loop() {
         if (gamepad1.leftBumperWasPressed()) {
             intakeEnabled = !intakeEnabled;
-            if (intakeEnabled) intake.intake();
+            if (intakeEnabled) intake.feed();
             else intake.stop();
         }
         if (gamepad1.yWasPressed()) targetVelocity += VELOCITY_STEP;
@@ -100,8 +100,8 @@ public class ShootTest extends OpMode {
         telemetry.addLine("Y（上）转速 +50，A（下）转速 -50");
         telemetry.addLine("B（右）背板位置 +0.01，X（左）背板位置 -0.01");
         telemetry.addLine("按住 R1 双飞轮运转，松开停止");
-        telemetry.addLine("L1 点击切换吸取开关");
-        telemetry.addData("Intake", intakeEnabled ? "ON" : "OFF");
+        telemetry.addLine("L1 点击切换 intake + trans 送球开关");
+        telemetry.addData("Intake + trans", intakeEnabled ? "ON" : "OFF");
         telemetry.addData("Pinpoint", pinpoint.getDeviceStatus());
         telemetry.addData("X (in)", "%.2f", x);
         telemetry.addData("Y (in)", "%.2f", y);
