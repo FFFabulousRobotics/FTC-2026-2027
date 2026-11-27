@@ -98,7 +98,11 @@ public class Shoot {
         return angle;
     }
     public void update(Telemetry telemetry) {
-        target();
+        update(telemetry, target());
+    }
+
+    public void update(Telemetry telemetry, Pose target) {
+        goal = target;
         // 外部每轮先 pp.update()，这里统一使用这一次读取的定位数据。
         double robotX = pp.getPosX(DistanceUnit.INCH);
         double robotY = pp.getPosY(DistanceUnit.INCH);

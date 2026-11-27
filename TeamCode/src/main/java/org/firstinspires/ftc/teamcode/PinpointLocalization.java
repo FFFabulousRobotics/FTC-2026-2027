@@ -1,36 +1,32 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.geometry.Pose;
+import com.pedropathing.ftc.localization.constants.PinpointConstants;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Configurable
 public class PinpointLocalization {
-    // 本赛季待标定：偏移单位为毫米，编码器型号和方向按实际安装填写。
-    public static double X_POD_OFFSET_MM = 0.0;
-    public static double Y_POD_OFFSET_MM = 0.0;
-    public static GoBildaPinpointDriver.GoBildaOdometryPods POD_TYPE =
-            GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD;
-    public static GoBildaPinpointDriver.EncoderDirection X_DIRECTION =
-            GoBildaPinpointDriver.EncoderDirection.FORWARD;
-    public static GoBildaPinpointDriver.EncoderDirection Y_DIRECTION =
-            GoBildaPinpointDriver.EncoderDirection.FORWARD;
-
     private GoBildaPinpointDriver pinpoint;
     private Pose2D initialPose;
     private boolean initialPosePending;
 
     /** 手动/测试入口：配置定位参数，保留 Pinpoint 当前的场地坐标和朝向。 */
     public void init(HardwareMap hardwareMap) {
-        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pp");
-        pinpoint.setOffsets(X_POD_OFFSET_MM, Y_POD_OFFSET_MM, DistanceUnit.MM);
-        pinpoint.setEncoderResolution(POD_TYPE);
-        pinpoint.setEncoderDirections(X_DIRECTION, Y_DIRECTION);
+        PinpointConstants config = Constants.pinpointConstants;
+        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, config.hardwareMapName);
+        pinpoint.setOffsets(config.forwardPodY, config.strafePodX, config.distanceUnit);
+        if (config.customEncoderResolution.isPresent()) {
+            pinpoint.setEncoderResolution(config.customEncoderResolution.getAsDouble(), config.distanceUnit);
+        } else {
+            pinpoint.setEncoderResolution(config.encoderResolution);
+        }
+        pinpoint.setEncoderDirections(config.forwardEncoderDirection, config.strafeEncoderDirection);
+        if (config.yawScalar.isPresent()) pinpoint.setYawScalar(config.yawScalar.getAsDouble());
         initialPosePending = false;
     }
 
