@@ -96,10 +96,18 @@ public class ManualOpMode extends LinearOpMode {
             double d = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1.0);
 
             //Setpower
-            leftFront.setPower((y + x + rx) / d);
-            rightFront.setPower((y - x - rx) / d);
-            leftBack.setPower((y - x + rx) / d);
-            rightBack.setPower((y + x - rx) / d);
+            if (!gamepad1.xWasPressed()){
+                leftFront.setPower((y + x + rx) / d /2);
+                rightFront.setPower((y - x - rx) / d /2) ;
+                leftBack.setPower((y - x + rx) / d /2);
+                rightBack.setPower((y + x - rx) / d /2);
+            } else {
+                leftFront.setPower((y + x + rx) / d);
+                rightFront.setPower((y - x - rx) / d) ;
+                leftBack.setPower((y - x + rx) / d);
+                rightBack.setPower((y + x - rx) / d);
+            }
+
 
             telemetry.addData("Forward y", "%.2f", y);
             telemetry.addData("Strafe x", "%.2f", x);
