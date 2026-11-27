@@ -31,7 +31,7 @@ public class TurretTest extends OpMode {
     public void loop() {
         double dt = timer.seconds();
         timer.reset();
-        int direction = (gamepad1.dpad_left ? 1 : 0) - (gamepad1.dpad_right ? 1 : 0);
+        double direction = gamepad1.left_trigger - gamepad1.right_trigger;
         angle += direction * TURN_SPEED_DEG_PER_SEC * dt;
         angle = Range.clip(angle, Turret.TURRET_MIN_SAFE_ANGLE, Turret.TURRET_MAX_SAFE_ANGLE);
         if (gamepad1.a) angle = 0;
@@ -40,7 +40,7 @@ public class TurretTest extends OpMode {
     }
 
     private void showTelemetry() {
-        telemetry.addLine("按住方向键左/右转动，松开保持；A 回中位");
+        telemetry.addLine("L2 / R2 控制左右转动，按压越深越快，松开保持；A 回中位");
         telemetry.addData("Angle command (deg)", "%.1f", angle);
         telemetry.addData("Turn speed (deg/s)", TURN_SPEED_DEG_PER_SEC);
         telemetry.addData("leftturret command", turret.getLastServo1Position());

@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.geometry.Pose;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -7,6 +8,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PwmControl;
 import com.qualcomm.robotcore.hardware.ServoImplEx;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -14,13 +16,19 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.UnnormalizedAngleUnit;
 import org.firstinspires.ftc.teamcode.Auto.Position;
 
+@Configurable
 public class Shoot {
+    // 沿用去年 Shooter 的 P + 前馈参数；转速单位为 ticks/s。
+    public static double P = 0.0092;
+    public static double F = 0.00020;
+    public static final double MAX_TARGET_VELOCITY_TICKS_S = 1900.0;
     // 沿用去年 HOOD_MIN 对应的背板零位，正式程序和测试共用。
     public static final double BOARD_INITIAL_POSITION = 0.029;
     public static final double GATE_OPEN_POSITION = 0.3;
     public static final double GATE_CLOSED_POSITION = 0.0;
     public static GoBildaPinpointDriver pp;
     private DcMotorEx leftflywheel, rightflywheel;
+    private double targetVelocity, measuredVelocity, flywheelPower;
     private ServoImplEx board;
     private ServoImplEx gate;
     private final Turret turret = new Turret();
@@ -28,16 +36,7 @@ public class Shoot {
     public static Pose goal;
 
     public void init(HardwareMap hardwareMap) {
-        leftflywheel = hardwareMap.get(DcMotorEx.class, "leftflywheel");
-        leftflywheel.setPower(0);
-        leftflywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        leftflywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-
-        rightflywheel = hardwareMap.get(DcMotorEx.class, "rightflywheel");
-        rightflywheel.setPower(0);
-        rightflywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightflywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-
+        initFlywheels(hardwareMap);
         pp = hardwareMap.get(GoBildaPinpointDriver.class, "pp");
         board = hardwareMap.get(ServoImplEx.class, "board");
         initBoard(board);
@@ -45,6 +44,23 @@ public class Shoot {
         gate.setPwmRange(new PwmControl.PwmRange(500, 2500));
         gateClose();
         turret.init(hardwareMap);
+    }
+
+    /** 供独立调速测试使用，仅初始化两个飞轮。 */
+    public void initFlywheels(HardwareMap hardwareMap) {
+        leftflywheel = hardwareMap.get(DcMotorEx.class, "leftflywheel");
+        leftflywheel.setPower(0);
+        leftflywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        leftflywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+
+        rightflywheel = hardwareMap.get(DcMotorEx.class, "rightflywheel");
+        rightflywheel.setPower(0);
+        rightflywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rightflywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+
+        targetVelocity = 0;
+        measuredVelocity = 0;
+        flywheelPower = 0;
     }
 
     public static void initBoard(ServoImplEx board) {
@@ -63,6 +79,8 @@ public class Shoot {
     public void stop() {
         leftflywheel.setPower(0);
         rightflywheel.setPower(0);
+        targetVelocity = 0;
+        flywheelPower = 0;
         gateClose();
     }
 
@@ -86,9 +104,27 @@ public class Shoot {
     private double velocity(double distance) {
         double velocity;
         velocity = distance;
-        leftflywheel.setVelocity(velocity);
-        rightflywheel.setVelocity(velocity);
-        return velocity;
+        setVelocity(velocity);
+        return targetVelocity;
+    }
+
+    /** 每轮调用：只读取右飞轮编码器，用同一份功率驱动两个飞轮。 */
+    public void setVelocity(double ticksPerSecond) {
+        targetVelocity = Range.clip(ticksPerSecond, 0.0, MAX_TARGET_VELOCITY_TICKS_S);
+        measuredVelocity = Math.abs(rightflywheel.getVelocity());
+        double error = targetVelocity - measuredVelocity;
+        flywheelPower = targetVelocity < 1.0 ? 0.0
+                : Range.clip(F * targetVelocity + P * error, 0.0, 1.0);
+        leftflywheel.setPower(flywheelPower);
+        rightflywheel.setPower(flywheelPower);
+    }
+
+    public double getMeasuredVelocity() {
+        return measuredVelocity;
+    }
+
+    public double getPower() {
+        return flywheelPower;
     }
 
     private double angle(double distance) {
@@ -120,6 +156,8 @@ public class Shoot {
         telemetry.addData("distance (in)", Math.hypot(goal.getX() - originX, goal.getY() - originY));
         telemetry.addData("shot distance (in)", movingShot.shootDistance);
         telemetry.addData("velocity", targetVelocity);
+        telemetry.addData("right measured velocity (ticks/s)", measuredVelocity);
+        telemetry.addData("flywheel power (both)", flywheelPower);
         telemetry.addData("angle", boardPosition);
         telemetry.addData("moving shot", movingShot.active ? "ON" : "STATIC");
         telemetry.addData("moving velocity (in/s)", "%.1f, %.1f",

@@ -28,8 +28,9 @@ public class PoseTest extends OpMode {
         for (int i = 0; i < motors.length; i++) {
             DcMotor motor = hardwareMap.get(DcMotor.class, names[i]);
             motors[i] = motor;
-            // 与当前 ManualMecanumDrive 的方向一致。
-            motor.setDirection(DcMotorSimple.Direction.FORWARD);
+            // 与 ManualOpMode 一致：lf、rb 反向，rf、lb 正向。
+            motor.setDirection(i == 0 || i == 3
+                    ? DcMotorSimple.Direction.REVERSE : DcMotorSimple.Direction.FORWARD);
             motor.setPower(0);
             motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
             motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);

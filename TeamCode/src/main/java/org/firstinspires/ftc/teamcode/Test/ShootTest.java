@@ -4,8 +4,6 @@ import com.pedropathing.geometry.Pose;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.PwmControl;
 import com.qualcomm.robotcore.hardware.ServoImplEx;
 import com.qualcomm.robotcore.util.Range;
@@ -24,29 +22,19 @@ public class ShootTest extends OpMode {
     private static final double VELOCITY_STEP = 50.0;
     private static final double BOARD_STEP = 0.01;
 
-    private DcMotorEx leftflywheel, rightflywheel;
+    private final Shoot shoot = new Shoot();
     private ServoImplEx board;
     private ServoImplEx gate;
     private final Intake intake = new Intake();
     private boolean intakeEnabled;
     private final PinpointLocalization localization = new PinpointLocalization();
     private GoBildaPinpointDriver pinpoint;
-    private double maxVelocity;
     private double targetVelocity;
     private double boardPosition;
 
     @Override
     public void init() {
-        leftflywheel = hardwareMap.get(DcMotorEx.class, "leftflywheel");
-        rightflywheel = hardwareMap.get(DcMotorEx.class, "rightflywheel");
-        leftflywheel.setPower(0);
-        rightflywheel.setPower(0);
-        leftflywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightflywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        leftflywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        rightflywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        maxVelocity = Math.min(leftflywheel.getMotorType().getAchieveableMaxTicksPerSecond(),
-                rightflywheel.getMotorType().getAchieveableMaxTicksPerSecond());
+        shoot.initFlywheels(hardwareMap);
         targetVelocity = 0;
         intake.init(hardwareMap);
         intakeEnabled = false;
@@ -78,13 +66,12 @@ public class ShootTest extends OpMode {
         if (gamepad1.aWasPressed()) targetVelocity -= VELOCITY_STEP;
         if (gamepad1.bWasPressed()) boardPosition += BOARD_STEP;
         if (gamepad1.xWasPressed()) boardPosition -= BOARD_STEP;
-        targetVelocity = Range.clip(targetVelocity, 0, maxVelocity);
+        targetVelocity = Range.clip(targetVelocity, 0, Shoot.MAX_TARGET_VELOCITY_TICKS_S);
         boardPosition = Range.clip(boardPosition, 0, 1);
         board.setPosition(boardPosition);
 
         double commandedVelocity = gamepad1.right_bumper ? targetVelocity : 0;
-        leftflywheel.setVelocity(commandedVelocity);
-        rightflywheel.setVelocity(commandedVelocity);
+        shoot.setVelocity(commandedVelocity);
         showTelemetry(commandedVelocity);
     }
 
@@ -95,11 +82,11 @@ public class ShootTest extends OpMode {
         double heading = pose.getHeading(AngleUnit.DEGREES);
         double originX = Turret.turretX(x, heading);
         double originY = Turret.turretY(y, heading);
-        double leftVelocity = leftflywheel.getVelocity();
-        double rightVelocity = rightflywheel.getVelocity();
+        double rightVelocity = shoot.getMeasuredVelocity();
         telemetry.addLine("Y（上）转速 +50，A（下）转速 -50");
         telemetry.addLine("B（右）背板位置 +0.01，X（左）背板位置 -0.01");
         telemetry.addLine("按住 R1 双飞轮运转，松开停止");
+        telemetry.addLine("右飞轮编码器反馈，P + 前馈计算双飞轮相同功率");
         telemetry.addLine("L1 点击切换 intake + trans 送球开关");
         telemetry.addData("Intake + trans", intakeEnabled ? "ON" : "OFF");
         telemetry.addData("Pinpoint", pinpoint.getDeviceStatus());
@@ -114,11 +101,11 @@ public class ShootTest extends OpMode {
         telemetry.addData("Command (ticks/s)", "%.0f", commandedVelocity);
         telemetry.addData("Board command (0..1)", "%.2f", boardPosition);
         telemetry.addData("Gate command", "OPEN %.2f", Shoot.GATE_OPEN_POSITION);
-        telemetry.addData("Left measured (ticks/s)", "%.1f", leftVelocity);
         telemetry.addData("Right measured (ticks/s)", "%.1f", rightVelocity);
-        telemetry.addData("Left error (ticks/s)", "%.1f", commandedVelocity - leftVelocity);
         telemetry.addData("Right error (ticks/s)", "%.1f", commandedVelocity - rightVelocity);
-        telemetry.addData("Motor max (ticks/s)", "%.0f", maxVelocity);
+        telemetry.addData("Flywheel power (both)", "%.3f", shoot.getPower());
+        telemetry.addData("P / F", "%.5f / %.5f", Shoot.P, Shoot.F);
+        telemetry.addData("Target max (ticks/s)", "%.0f", Shoot.MAX_TARGET_VELOCITY_TICKS_S);
         telemetry.update();
     }
 
@@ -134,8 +121,7 @@ public class ShootTest extends OpMode {
     public void stop() {
         intakeEnabled = false;
         intake.stop();
-        leftflywheel.setPower(0);
-        rightflywheel.setPower(0);
+        shoot.setVelocity(0);
         gate.setPosition(Shoot.GATE_CLOSED_POSITION);
     }
 }

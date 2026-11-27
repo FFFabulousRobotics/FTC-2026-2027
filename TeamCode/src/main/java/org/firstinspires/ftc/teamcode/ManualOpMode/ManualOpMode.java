@@ -15,7 +15,7 @@ import org.firstinspires.ftc.teamcode.PinpointLocalization;
 import org.firstinspires.ftc.teamcode.Intake;
 import org.firstinspires.ftc.teamcode.Shoot;
 
-@TeleOp(name = "Manual Mecanum Drive", group = "Manual")
+@TeleOp(name = "ManualOpMode", group = "Manual")
 public class ManualOpMode extends LinearOpMode {
 
     private DcMotor leftFront;
