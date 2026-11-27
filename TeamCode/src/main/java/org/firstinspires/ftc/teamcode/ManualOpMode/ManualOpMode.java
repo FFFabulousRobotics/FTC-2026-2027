@@ -69,6 +69,7 @@ public class ManualOpMode extends LinearOpMode {
 
         telemetry.addData("Status", "已初始化，等待开始");
         telemetry.addLine(imu == null ? "有头模式" : "无头模式：A 重设前方");
+        telemetry.addLine("按住 L1 吐球，松开停止");
         telemetry.update();
 
         waitForStart();
@@ -116,7 +117,9 @@ public class ManualOpMode extends LinearOpMode {
                 ONSHOOT = true;
             }
 
-            if(ONSHOOT) {
+            if (gamepad1.left_bumper) {
+                intake.kick();
+            } else if(ONSHOOT) {
                 double deltatime = timer.seconds() - shoottime;
                 if((Shoot.distance() > 115 && deltatime > 0.6) || (Shoot.distance() <= 115 && deltatime > 0.55)) {
                     intake.stop();

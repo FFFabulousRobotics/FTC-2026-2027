@@ -17,8 +17,8 @@ import org.firstinspires.ftc.teamcode.Auto.Position;
 public class Shoot {
     // 沿用去年 HOOD_MIN 对应的背板零位，正式程序和测试共用。
     public static final double BOARD_INITIAL_POSITION = 0.029;
-    public static final double GATE_OPEN_POSITION = 0.74;
-    public static final double GATE_CLOSED_POSITION = 0.5;
+    public static final double GATE_OPEN_POSITION = 0.3;
+    public static final double GATE_CLOSED_POSITION = 0.0;
     public static GoBildaPinpointDriver pp;
     private DcMotorEx leftflywheel, rightflywheel;
     private ServoImplEx board;
