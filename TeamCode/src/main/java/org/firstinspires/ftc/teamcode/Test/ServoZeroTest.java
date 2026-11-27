@@ -6,6 +6,8 @@ import com.qualcomm.robotcore.hardware.PwmControl;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.ServoImplEx;
 
+import org.firstinspires.ftc.teamcode.Shoot;
+
 @TeleOp(name = "Servo Zero Test", group = "Test")
 public class ServoZeroTest extends OpMode {
     private ServoImplEx leftturret, rightturret, board;
@@ -28,10 +30,10 @@ public class ServoZeroTest extends OpMode {
     }
 
     private void setZero() {
-        // 去年云台正前方的中位（含预紧），以及背板最低位置。
+        // 云台正前方的中位（含预紧），以及当前背板初始位置。
         leftturret.setPosition(0.5035);
         rightturret.setPosition(0.4965);
-        board.setPosition(0.029);
+        board.setPosition(Shoot.BOARD_INITIAL_POSITION);
         telemetry.addData("leftturret command", leftturret.getPosition());
         telemetry.addData("rightturret command", rightturret.getPosition());
         telemetry.addData("board command", board.getPosition());

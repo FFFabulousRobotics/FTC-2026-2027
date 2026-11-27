@@ -109,7 +109,7 @@ public class NewBeeAuto extends OpMode {
         }
         telemetry.addData("State", state);
         if (state != PathState.START && state != PathState.END) shoot.update(telemetry, goal);
-        else telemetry.update();
+        telemetry.update();
     }
 
     @Override

@@ -34,12 +34,13 @@ public class Constants {
             // Automatic > Lateral Zero Power Acceleration Tuner：横移断电滑行减速度，填负值。
             // .lateralZeroPowerAcceleration( )
 
-            // Manual > Translational Tuner：纠正横向偏离路径；顺序 P、I、D、F。
-            // .translationalPIDFCoefficients(new PIDFCoefficients( , , , ))
-            // 同一测试：独立的平移积分系数，基本 PID 调好后按需使用。
-            // .translationalIntegral( )
-            // Manual > Heading Tuner：纠正车身朝向误差；顺序 P、I、D、F。
-            // .headingPIDFCoefficients(new PIDFCoefficients( , , , ))
+            // Translational PIDF Auto Tuner 两轮复测通过；RMS 0.453 in，速度 0.974 in/s。
+            .translationalPIDFCoefficients(new PIDFCoefficients(0.25714286, 0.00000000, 0.01966863, 0.00000000))
+            .useSecondaryTranslationalPIDF(false)
+            .translationalIntegral(0.0)
+            // Heading PIDF Auto Tuner 实测初值；复测 RMS 1.130°，先用于后续底盘调试。
+            .headingPIDFCoefficients(new PIDFCoefficients(3.38097802, 0.00000000, 0.17034056, 0.01000000))
+            .useSecondaryHeadingPIDF(false)
             // Manual > Drive Tuner：沿路径的前进/减速控制；顺序 P、I、D、T、F。
             // T 是 D 项滤波参数，不是跑打提前量。
             // .drivePIDFCoefficients(new FilteredPIDFCoefficients( , , , , ))
@@ -109,14 +110,14 @@ public class Constants {
             .hardwareMapName("pp")
             .distanceUnit(DistanceUnit.INCH)
             .forwardEncoderDirection(GoBildaPinpointDriver.EncoderDirection.FORWARD)
-            .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.FORWARD)
+            // 横向测距轮反装：在编码器源头修正，所有模块统一读取修正后的位姿和速度。
+            .strafeEncoderDirection(GoBildaPinpointDriver.EncoderDirection.REVERSED)
             // Localization > Offsets Tuner：先将下面两个偏移填 0，再原地转约 180°。
             // 读取 forwardY / strafeX，输出单位是 inch，可直接填回。
-            // .forwardPodY( ) // 前后测距轮的左右偏移：左正、右负，inch。
-            // .strafePodX( ) // 横向测距轮的前后偏移：前正、后负，inch。
-            // 测距轮型号按硬件选择；可填 GoBildaPinpointDriver.GoBildaOdometryPods
-            // 下的 goBILDA_4_BAR_POD 或 goBILDA_SWINGARM_POD，没有自动识别项。
-            // .encoderResolution( )
+            .forwardPodY(0.070778) // Offsets Tuner 清零后实测；左正、右负，inch。
+            .strafePodX(-1.264770) // Offsets Tuner 清零后实测；前正、后负，inch。
+            // 与去年 CZL 相同的 goBILDA 4-Bar 测距轮，使用内置分辨率。
+            .encoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD)
             // 非标准测距轮才填自定义分辨率；当前单位 INCH，因此这里是 ticks/inch。
             // Localization > Forward Tuner / Lateral Tuner：对比实测距离，检查比例。
             // .customEncoderResolution( )
@@ -143,15 +144,20 @@ public class Constants {
         // followerConstants.setIntegralSecondaryTranslational(new PIDFCoefficients( , , , ));
         // 预测刹车反向制动的功率上限，0～1；用 Tests > Line 验证。
         // followerConstants.predictiveBrakingCoefficients.withMaximumBrakingPower( );
-        // 手动控制预测刹车开关，boolean；不用该模式就保持注释。
-        // followerConstants.usePredictiveBraking = ;
+        // 当前使用已标定的平移 PIDF，关闭会绕过它的预测刹车模式。
+        followerConstants.usePredictiveBraking = false;
     }
 
     public static Follower createFollower(HardwareMap hardwareMap) {
+        return createFollower(hardwareMap, followerConstants);
+    }
+
+    /** 调参器使用独立的控制参数，候选值不会提前覆盖正式参数。 */
+    public static Follower createFollower(HardwareMap hardwareMap, FollowerConstants controlConstants) {
         // 2.1.2 的 x/yVelocity setter 不会重算轮子向量，这里根据填写的速度同步。
         mecanumConstants.frontLeftVector = new Vector(1,
                 Math.atan2(-mecanumConstants.yVelocity, mecanumConstants.xVelocity));
-        return new FollowerBuilder(followerConstants, hardwareMap)
+        return new FollowerBuilder(controlConstants, hardwareMap)
                 .mecanumDrivetrain(mecanumConstants)
                 .pinpointLocalizer(pinpointConstants)
                 .pathConstraints(pathConstraints)

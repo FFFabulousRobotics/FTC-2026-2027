@@ -1,0 +1,36 @@
+const assert=require('node:assert/strict');
+const C=require('./core.js');
+const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-7,`${a} != ${b}`);
+for(let angle=-180;angle<=180;angle+=15){
+  const f={x:32.1,y:61.9,angle},p={x:101.4,y:13.7,h:179};
+  const q=C.world(C.local(p,f),f);near(q.x,p.x);near(q.y,p.y);near(C.wrap(q.h-p.h),0);
+}
+let f={x:10,y:20,angle:90};let p=C.local({x:10,y:30,h:90},f);near(p.x,10);near(p.y,0);near(p.h,0);
+p=C.local({x:0,y:20,h:180},f);near(p.y,10);
+let s=C.defaults();assert.equal(C.collision({x:24,y:24,h:0},s),'');
+near(C.snap(s,'left').x,10);near(C.snap(s,'right').x,134);
+s.robot.offsetX=5;near(C.snap(s,'left').x,15);s=C.defaults();
+assert.match(C.collision({x:5,y:24,h:0},s),/围墙/);
+assert.match(C.collision({x:72,y:72,h:45},s),/中央/);
+assert.equal(C.collision({x:12,y:30,h:0},s),'');
+assert.match(C.collision({x:12,y:30,h:45},s),/围墙/);
+s.robot.offsetX=5;p=C.robotPolygon({x:30,y:30,h:90},s.robot);
+near(p.reduce((a,p)=>a+p.x,0)/4,30);near(p.reduce((a,p)=>a+p.y,0)/4,25);
+s=C.defaults();s.route=[{x:24,y:72,h:0,name:'START'},{x:120,y:72,h:0,name:'END'}];
+assert.ok(C.analyze(s).problems.length>0);
+s.route=C.plan(s.route[0],s.route[1],s);
+assert.ok(s.route.length>2);assert.equal(C.analyze(s).problems.length,0);
+near(s.route[0].x,24);near(s.route.at(-1).x,120);
+assert.ok(C.java(s).includes('.setLinearHeadingInterpolation('));
+const worldRoute=JSON.stringify(s.route);s.frame={x:24,y:72,angle:90};
+assert.equal(JSON.stringify(s.route),worldRoute);assert.ok(C.java(s).includes('new Pose(0, 0,'));
+const turn=C.legSamples({x:30,y:30,h:179},{x:30,y:30,h:-179});
+assert.ok(turn.length<5);assert.ok(turn.some(p=>Math.abs(p.h)>=179));
+s=C.defaults();s.route=[{x:12,y:30,h:0},{x:12,y:30,h:90}];assert.ok(C.analyze(s).problems.length>0,'rotation sweep must be checked');
+s=C.defaults();assert.throws(()=>C.plan({x:1,y:1,h:0},{x:120,y:120,h:0},s),/净空/);
+s.field.blockCenter=false;assert.equal(C.collision({x:72,y:72,h:0},s),'');
+assert.throws(()=>C.validate({...C.defaults(),robot:{...C.defaults().robot,width:0}}));
+assert.throws(()=>C.validate({...C.defaults(),frame:{x:NaN,y:0,angle:0}}));
+s=C.defaults();s.route=[{x:24,y:24,h:0,name:'A'},{x:100,y:24,h:90,name:'B'}];
+require('node:fs').writeFileSync(process.argv[2]||'PlannedRoute-check.java',C.java(s));
+console.log('PASS frame transforms, handedness, rotated footprints, reference offset, obstacle/wall collision, swept rotation, A* clearance, endpoint preservation, Java export and invalid plans');

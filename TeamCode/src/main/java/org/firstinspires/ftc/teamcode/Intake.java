@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 public class Intake {
+    public static final double MAX_POWER = 1.0;
 
     private DcMotorEx intake, trans;
 
@@ -14,12 +15,12 @@ public class Intake {
     }
 
     public void intake() {
-        intake.setPower(1.0);
+        intake.setPower(MAX_POWER);
         trans.setPower(0.0);
     }
 
     public void feed() {
-        intake.setPower(1.0);
+        intake.setPower(MAX_POWER);
         trans.setPower(1.0);
     }
 
@@ -29,7 +30,7 @@ public class Intake {
     }
 
     public void kick() {
-        intake.setPower(-1.0);
+        intake.setPower(-MAX_POWER);
         trans.setPower(-1.0);
     }
 }

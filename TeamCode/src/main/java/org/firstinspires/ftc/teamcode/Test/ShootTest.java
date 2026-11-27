@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode.Test;
 
-import com.pedropathing.geometry.Pose;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -11,22 +10,22 @@ import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import org.firstinspires.ftc.teamcode.Auto.Position;
 import org.firstinspires.ftc.teamcode.Intake;
 import org.firstinspires.ftc.teamcode.PinpointLocalization;
 import org.firstinspires.ftc.teamcode.Shoot;
-import org.firstinspires.ftc.teamcode.Turret;
 
 @TeleOp(name = "Shoot Test", group = "Test")
 public class ShootTest extends OpMode {
     private static final double VELOCITY_STEP = 50.0;
     private static final double BOARD_STEP = 0.01;
+    private static final Pose2D ZERO_POSE =
+            new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 0);
 
     private final Shoot shoot = new Shoot();
     private ServoImplEx board;
     private ServoImplEx gate;
     private final Intake intake = new Intake();
-    private boolean intakeEnabled;
+    private boolean enabled;
     private final PinpointLocalization localization = new PinpointLocalization();
     private GoBildaPinpointDriver pinpoint;
     private double targetVelocity;
@@ -37,7 +36,7 @@ public class ShootTest extends OpMode {
         shoot.initFlywheels(hardwareMap);
         targetVelocity = 0;
         intake.init(hardwareMap);
-        intakeEnabled = false;
+        enabled = false;
         intake.stop();
         board = hardwareMap.get(ServoImplEx.class, "board");
         boardPosition = Shoot.BOARD_INITIAL_POSITION;
@@ -47,79 +46,49 @@ public class ShootTest extends OpMode {
         gate.setPosition(Shoot.GATE_OPEN_POSITION);
         localization.init(hardwareMap);
         pinpoint = localization.getDriver();
-        showTelemetry(0);
+        showTelemetry();
     }
 
     @Override
     public void init_loop() {
-        showTelemetry(0);
+        showTelemetry();
     }
 
     @Override
     public void loop() {
-        if (gamepad1.leftBumperWasPressed()) {
-            intakeEnabled = !intakeEnabled;
-            if (intakeEnabled) intake.feed();
-            else intake.stop();
-        }
+        if (gamepad1.xWasPressed()) enabled = !enabled;
         if (gamepad1.yWasPressed()) targetVelocity += VELOCITY_STEP;
         if (gamepad1.aWasPressed()) targetVelocity -= VELOCITY_STEP;
-        if (gamepad1.bWasPressed()) boardPosition += BOARD_STEP;
-        if (gamepad1.xWasPressed()) boardPosition -= BOARD_STEP;
+        if (gamepad1.leftBumperWasPressed()) boardPosition -= BOARD_STEP;
+        if (gamepad1.rightBumperWasPressed()) boardPosition += BOARD_STEP;
+        if (gamepad1.bWasPressed()) pinpoint.setPosition(ZERO_POSE);
         targetVelocity = Range.clip(targetVelocity, 0, Shoot.MAX_TARGET_VELOCITY_TICKS_S);
         boardPosition = Range.clip(boardPosition, 0, 1);
         board.setPosition(boardPosition);
 
-        double commandedVelocity = gamepad1.right_bumper ? targetVelocity : 0;
-        shoot.setVelocity(commandedVelocity);
-        showTelemetry(commandedVelocity);
+        shoot.setVelocity(enabled ? targetVelocity : 0);
+        if (enabled) intake.feed();
+        else intake.stop();
+        showTelemetry();
     }
 
-    private void showTelemetry(double commandedVelocity) {
+    private void showTelemetry() {
         Pose2D pose = localization.update();
         double x = pose.getX(DistanceUnit.INCH);
         double y = pose.getY(DistanceUnit.INCH);
-        double heading = pose.getHeading(AngleUnit.DEGREES);
-        double originX = Turret.turretX(x, heading);
-        double originY = Turret.turretY(y, heading);
-        double rightVelocity = shoot.getMeasuredVelocity();
-        telemetry.addLine("Y（上）转速 +50，A（下）转速 -50");
-        telemetry.addLine("B（右）背板位置 +0.01，X（左）背板位置 -0.01");
-        telemetry.addLine("按住 R1 双飞轮运转，松开停止");
-        telemetry.addLine("右飞轮编码器反馈，P + 前馈计算双飞轮相同功率");
-        telemetry.addLine("L1 点击切换 intake + trans 送球开关");
-        telemetry.addData("Intake + trans", intakeEnabled ? "ON" : "OFF");
-        telemetry.addData("Pinpoint", pinpoint.getDeviceStatus());
-        telemetry.addData("X (in)", "%.2f", x);
-        telemetry.addData("Y (in)", "%.2f", y);
-        telemetry.addData("Heading (deg)", "%.2f", heading);
-        telemetry.addData("Turret pivot (in)", "%.2f, %.2f", originX, originY);
-        // Position 中的射击点坐标与 Pinpoint 位姿须使用同一场地坐标系（英寸）。
-        showDistance("Distance to SHOOT_POSE_1 (in)", Position.SHOOT_POSE_1, originX, originY);
-        showDistance("Distance to SHOOT_POSE_2 (in)", Position.SHOOT_POSE_2, originX, originY);
-        telemetry.addData("Target (ticks/s)", "%.0f", targetVelocity);
-        telemetry.addData("Command (ticks/s)", "%.0f", commandedVelocity);
-        telemetry.addData("Board command (0..1)", "%.2f", boardPosition);
-        telemetry.addData("Gate command", "OPEN %.2f", Shoot.GATE_OPEN_POSITION);
-        telemetry.addData("Right measured (ticks/s)", "%.1f", rightVelocity);
-        telemetry.addData("Right error (ticks/s)", "%.1f", commandedVelocity - rightVelocity);
-        telemetry.addData("Flywheel power (both)", "%.3f", shoot.getPower());
-        telemetry.addData("P / F", "%.5f / %.5f", Shoot.P, Shoot.F);
-        telemetry.addData("Target max (ticks/s)", "%.0f", Shoot.MAX_TARGET_VELOCITY_TICKS_S);
+        telemetry.addData("target", "%.0f", targetVelocity);
+        telemetry.addData("currentvelocity", "%.1f", shoot.getMeasuredVelocity());
+        telemetry.addData("board", "%.3f", boardPosition);
+        telemetry.addData("x", "%.2f", x);
+        telemetry.addData("y", "%.2f", y);
+        // B 设置的 Pinpoint 零点到当前位置的直线距离，单位 inch。
+        telemetry.addData("distance", "%.2f", Math.hypot(x, y));
         telemetry.update();
-    }
-
-    private void showDistance(String label, Pose target, double x, double y) {
-        if (target == null) {
-            telemetry.addData(label, "未配置");
-        } else {
-            telemetry.addData(label, "%.2f", Math.hypot(target.getX() - x, target.getY() - y));
-        }
     }
 
     @Override
     public void stop() {
-        intakeEnabled = false;
+        enabled = false;
         intake.stop();
         shoot.setVelocity(0);
         gate.setPosition(Shoot.GATE_CLOSED_POSITION);

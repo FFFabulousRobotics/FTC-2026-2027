@@ -12,6 +12,7 @@ import com.qualcomm.robotcore.hardware.ServoImplEx;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.Shoot;
+import org.firstinspires.ftc.teamcode.Intake;
 
 @Configurable
 @TeleOp(name = "Manual Test", group = "Test")
@@ -75,11 +76,13 @@ public class ManualTest extends OpMode {
         double x = gamepad1.left_stick_x;
         double rx = gamepad1.right_stick_x;
         double d = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1.0);
+        // 默认全速，X 按下当帧使用 30% 功率（/10 * 3）。
+        double driveScale = gamepad1.xWasPressed() ? 0.3 : 1.0;
 
-        leftFront.setPower((y + x + rx) / d);
-        rightFront.setPower((y - x - rx) / d);
-        leftBack.setPower((y - x + rx) / d);
-        rightBack.setPower((y + x - rx) / d);
+        leftFront.setPower((y + x + rx) / d * driveScale);
+        rightFront.setPower((y - x - rx) / d * driveScale);
+        leftBack.setPower((y - x + rx) / d * driveScale);
+        rightBack.setPower((y + x - rx) / d * driveScale);
 
         // 双飞轮以 +1 功率常开。
         leftflywheel.setPower(1);
@@ -99,17 +102,18 @@ public class ManualTest extends OpMode {
                 gate.setPosition(Shoot.GATE_CLOSED_POSITION);
                 shooting = false;
             } else if (elapsed >= GATE_DELAY_S) {
-                setFeedPower(1, 1);
+                setFeedPower(Intake.MAX_POWER, 1);
             } else {
                 setFeedPower(0, 0);
             }
         } else {
-            setFeedPower(gamepad1.left_trigger_pressed ? 1 : 0, 0);
+            setFeedPower(gamepad1.left_trigger_pressed ? Intake.MAX_POWER : 0, 0);
         }
 
         telemetry.addData("Forward y", "%.2f", y);
         telemetry.addData("Strafe x", "%.2f", x);
         telemetry.addData("Rotate rx", "%.2f", rx);
+        telemetry.addData("Drive scale", driveScale);
         telemetry.addData("lf / lb power", "%.2f / %.2f", leftFront.getPower(), leftBack.getPower());
         telemetry.addData("rf / rb power", "%.2f / %.2f", rightFront.getPower(), rightBack.getPower());
         showTelemetry();

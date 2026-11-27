@@ -57,6 +57,8 @@ public class ManualOpMode extends LinearOpMode {
         intake.init(hardwareMap);
         shoot.init(hardwareMap);
         shoot.gateClose();
+        localization.update();
+        if (localization.isReady()) shoot.prepareBoardForCurrentTarget();
 
 
         IMU imu = null;
@@ -73,6 +75,9 @@ public class ManualOpMode extends LinearOpMode {
         telemetry.update();
 
         waitForStart();
+        if (isStopRequested()) return;
+        localization.update();
+        if (localization.isReady()) shoot.prepareBoardForCurrentTarget();
         if (imu != null) imu.resetYaw();
         timer.reset();
 
@@ -96,7 +101,7 @@ public class ManualOpMode extends LinearOpMode {
             double d = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1.0);
 
             //Setpower
-            if (!gamepad1.xWasPressed()){
+            if (gamepad1.xWasPressed()){
                 leftFront.setPower((y + x + rx) / d /2);
                 rightFront.setPower((y - x - rx) / d /2) ;
                 leftBack.setPower((y - x + rx) / d /2);
@@ -116,7 +121,6 @@ public class ManualOpMode extends LinearOpMode {
                     pose.getX(DistanceUnit.INCH), pose.getY(DistanceUnit.INCH),
                     pose.getHeading(AngleUnit.DEGREES));
             telemetry.addData("Pinpoint", localization.getDriver().getDeviceStatus());
-            telemetry.update();
             shoot.update(telemetry);
 
             if(gamepad1.rightTriggerWasPressed() && !ONSHOOT) {
@@ -140,6 +144,7 @@ public class ManualOpMode extends LinearOpMode {
                 if (gamepad1.left_trigger_pressed) intake.intake();
                 else intake.stop();
             }
+            telemetry.update();
         }
         intake.stop();
         shoot.stop();

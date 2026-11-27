@@ -4,6 +4,9 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.util.Range;
+
+import org.firstinspires.ftc.teamcode.Intake;
 
 @TeleOp(name = "Shoot Power Test", group = "Test")
 public class ShootPowerTest extends OpMode {
@@ -21,14 +24,14 @@ public class ShootPowerTest extends OpMode {
         }
         leftflywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         rightflywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        telemetry.addLine("START 后四个电机全部 +1，STOP 后停止");
+        telemetry.addLine("START 后 INTAKE、TRANS 和双飞轮全部 +1，STOP 后停止");
         telemetry.update();
     }
 
     @Override
     public void loop() {
         setPower(1);
-        telemetry.addData("INTAKE / TRANS power", "+1 / +1");
+        telemetry.addData("INTAKE / TRANS power", "%.1f / %.1f", intake.getPower(), trans.getPower());
         telemetry.addData("Flywheel power (left / right)", "+1 / +1");
         telemetry.addData("Left velocity (ticks/s)", leftflywheel.getVelocity());
         telemetry.addData("Right velocity (ticks/s)", rightflywheel.getVelocity());
@@ -36,7 +39,7 @@ public class ShootPowerTest extends OpMode {
     }
 
     private void setPower(double power) {
-        intake.setPower(power);
+        intake.setPower(Range.clip(power, -Intake.MAX_POWER, Intake.MAX_POWER));
         trans.setPower(power);
         leftflywheel.setPower(power);
         rightflywheel.setPower(power);

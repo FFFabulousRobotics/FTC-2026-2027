@@ -72,6 +72,9 @@ public class PoseTest extends OpMode {
         Pose2D pose = localization.update();
         telemetry.addLine(controls);
         telemetry.addData("Pinpoint", pinpoint.getDeviceStatus());
+        // 从设备读回：X 测距轮的 Y 偏移、Y 测距轮的 X 偏移。
+        telemetry.addData("forwardPodY applied (in)", "%.4f", pinpoint.getXOffset(DistanceUnit.INCH));
+        telemetry.addData("strafePodX applied (in)", "%.4f", pinpoint.getYOffset(DistanceUnit.INCH));
         telemetry.addData("X (in)", "%.2f", pose.getX(DistanceUnit.INCH));
         telemetry.addData("Y (in)", "%.2f", pose.getY(DistanceUnit.INCH));
         telemetry.addData("Heading (deg)", "%.2f", pose.getHeading(AngleUnit.DEGREES));

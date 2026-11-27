@@ -7,11 +7,13 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.util.Range;
 
+import org.firstinspires.ftc.teamcode.Intake;
+
 @Configurable
 @TeleOp(name = "Intake Test", group = "Test")
 public class IntakeTest extends OpMode {
-    public static double INTAKE_X_POWER = 1.0;
-    public static double INTAKE_Y_POWER = -1.0;
+    public static double INTAKE_X_POWER = Intake.MAX_POWER;
+    public static double INTAKE_Y_POWER = -Intake.MAX_POWER;
     public static double TRANS_A_POWER = 1.0;
     public static double TRANS_B_POWER = -1.0;
 
@@ -31,7 +33,7 @@ public class IntakeTest extends OpMode {
     public void loop() {
         double intakePower = gamepad1.x ? INTAKE_X_POWER : gamepad1.y ? INTAKE_Y_POWER : 0.0;
         double transPower = gamepad1.a ? TRANS_A_POWER : gamepad1.b ? TRANS_B_POWER : 0.0;
-        intake.setPower(Range.clip(intakePower, -1.0, 1.0));
+        intake.setPower(Range.clip(intakePower, -Intake.MAX_POWER, Intake.MAX_POWER));
         trans.setPower(Range.clip(transPower, -1.0, 1.0));
         showTelemetry();
     }

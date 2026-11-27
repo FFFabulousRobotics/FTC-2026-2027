@@ -64,6 +64,8 @@ public class Tuning extends SelectableOpMode {
                 l.add("Turn Tuner", TurnTuner::new);
             });
             s.folder("Automatic", a -> {
+                a.add("Heading PIDF Auto Tuner", HeadingPIDFAutoTuner::new);
+                a.add("Translational PIDF Auto Tuner", TranslationalPIDFAutoTuner::new);
                 a.add("Forward Velocity Tuner", ForwardVelocityTuner::new);
                 a.add("Lateral Velocity Tuner", LateralVelocityTuner::new);
                 a.add("Forward Zero Power Acceleration Tuner", ForwardZeroPowerAccelerationTuner::new);
