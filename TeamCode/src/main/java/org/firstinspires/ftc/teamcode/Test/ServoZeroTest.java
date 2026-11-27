@@ -28,10 +28,10 @@ public class ServoZeroTest extends OpMode {
     }
 
     private void setZero() {
-        // 直接设置舵机位置 0.0，不经过云台角度映射或背板曲线。
-        leftturret.setPosition(0.0);
-        rightturret.setPosition(0.0);
-        board.setPosition(0.0);
+        // 去年云台正前方的中位（含预紧），以及背板最低位置。
+        leftturret.setPosition(0.5035);
+        rightturret.setPosition(0.4965);
+        board.setPosition(0.029);
         telemetry.addData("leftturret command", leftturret.getPosition());
         telemetry.addData("rightturret command", rightturret.getPosition());
         telemetry.addData("board command", board.getPosition());

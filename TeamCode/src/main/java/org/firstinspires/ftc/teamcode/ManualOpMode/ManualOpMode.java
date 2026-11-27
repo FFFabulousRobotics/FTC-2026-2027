@@ -11,7 +11,6 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import org.firstinspires.ftc.teamcode.LiftAndNet;
 import org.firstinspires.ftc.teamcode.PinpointLocalization;
 import org.firstinspires.ftc.teamcode.Intake;
 import org.firstinspires.ftc.teamcode.Shoot;
@@ -23,7 +22,6 @@ public class ManualOpMode extends LinearOpMode {
     private DcMotor leftBack;
     private DcMotor rightFront;
     private DcMotor rightBack;
-    private final LiftAndNet liftAndNet = new LiftAndNet();
     private final PinpointLocalization localization = new PinpointLocalization();
     private Intake intake = new Intake();
     private Shoot shoot = new Shoot();
@@ -55,7 +53,6 @@ public class ManualOpMode extends LinearOpMode {
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        liftAndNet.init(hardwareMap);
         localization.init(hardwareMap);
         intake.init(hardwareMap);
         shoot.init(hardwareMap);
@@ -72,8 +69,6 @@ public class ManualOpMode extends LinearOpMode {
 
         telemetry.addData("Status", "已初始化，等待开始");
         telemetry.addLine(imu == null ? "有头模式" : "无头模式：A 重设前方");
-        telemetry.addLine("L1 抬升，R1 下降，松手停止");
-        telemetry.addLine("X 切换 net");
         telemetry.update();
 
         waitForStart();
@@ -121,9 +116,6 @@ public class ManualOpMode extends LinearOpMode {
                 ONSHOOT = true;
             }
 
-            if (gamepad1.xWasPressed()) liftAndNet.toggleNet();
-            liftAndNet.update(gamepad1.left_bumper, gamepad1.right_bumper);
-
             if(ONSHOOT) {
                 double deltatime = timer.seconds() - shoottime;
                 if((Shoot.distance() > 115 && deltatime > 0.6) || (Shoot.distance() <= 115 && deltatime > 0.55)) {
@@ -138,7 +130,6 @@ public class ManualOpMode extends LinearOpMode {
                 else intake.stop();
             }
         }
-        liftAndNet.stop();
         intake.stop();
         shoot.stop();
     }
