@@ -39,6 +39,8 @@ public class Turret {
     public static double TURRET_WRAP_HOLD_HYSTERESIS_DEG = 15.0;
     /** Caps the time used by the slew limiter after a delayed robot loop. */
     public static double TURRET_CONTROL_MAX_DT_S = 0.05;
+    /** Y/B held: robot-relative manual adjustment speed. */
+    public static double MANUAL_TURN_RATE_DEG_PER_SEC = 20.0;
 
     // One servo pulse step (1 us over the 500-2500 us range).
     private static final double SERVO_POSITION_QUANTUM = 1.0 / 2000.0;
@@ -51,6 +53,8 @@ public class Turret {
         public double turretAngleDeg;
         public double aimErrorDeg;
         public boolean wrapProtected;
+        public boolean manualOverride;
+        public double yawOffsetDeg;
     }
 
     private ServoImplEx leftturret, rightturret;
@@ -65,6 +69,11 @@ public class Turret {
     private double lastWrittenServo2Position = Double.NaN;
 
     public void init(HardwareMap hardwareMap) {
+        init(hardwareMap, false);
+    }
+
+    /** Static Manual：两个舵机直接锁在 0.5，不叠加零位或预紧补偿。 */
+    public void initLocked(HardwareMap hardwareMap) {
         leftturret = hardwareMap.get(ServoImplEx.class, "leftturret");
         rightturret = hardwareMap.get(ServoImplEx.class, "rightturret");
         PwmControl.PwmRange range = new PwmControl.PwmRange(500, 2500);
@@ -72,8 +81,36 @@ public class Turret {
         rightturret.setPwmRange(range);
         leftturret.setDirection(Servo.Direction.FORWARD);
         rightturret.setDirection(Servo.Direction.FORWARD);
-        omegaFilterInitialized = false;
-        center();
+        holdServoCenter();
+        leftturret.setPwmEnable();
+        rightturret.setPwmEnable();
+    }
+
+    public void holdServoCenter() {
+        filteredTargetAngle = 0;
+        lastServoPosition = lastServo1Position = lastServo2Position = 0.5;
+        lastWrittenServo1Position = lastWrittenServo2Position = 0.5;
+        leftturret.setPosition(0.5);
+        rightturret.setPosition(0.5);
+    }
+
+    /** 自动接手到手动时重新绑定硬件，沿用最后命令角，避免初始化回中。 */
+    public void init(HardwareMap hardwareMap, boolean preserveAim) {
+        leftturret = hardwareMap.get(ServoImplEx.class, "leftturret");
+        rightturret = hardwareMap.get(ServoImplEx.class, "rightturret");
+        PwmControl.PwmRange range = new PwmControl.PwmRange(500, 2500);
+        leftturret.setPwmRange(range);
+        rightturret.setPwmRange(range);
+        leftturret.setDirection(Servo.Direction.FORWARD);
+        rightturret.setDirection(Servo.Direction.FORWARD);
+        lastWrittenServo1Position = lastWrittenServo2Position = Double.NaN;
+        if (preserveAim && isAngleSafe(filteredTargetAngle)) {
+            lastUpdateNanos = System.nanoTime();
+            commandTurretAngle(filteredTargetAngle);
+        } else {
+            omegaFilterInitialized = false;
+            center();
+        }
     }
 
     /** 目标相对车身的几何角度，单位弧度；不含旋转速度补偿。 */
@@ -107,8 +144,21 @@ public class Turret {
     public AimResult update(double robotX, double robotY, double headingDeg,
                             double omegaDegPerSec, double targetX, double targetY,
                             double yawOffsetDeg) {
+        return update(robotX, robotY, headingDeg, omegaDegPerSec,
+                targetX, targetY, yawOffsetDeg, 0.0);
+    }
+
+    /** Nonzero manualDirection overrides automatic aiming and returns the learned trim. */
+    public AimResult update(double robotX, double robotY, double headingDeg,
+                            double omegaDegPerSec, double targetX, double targetY,
+                            double yawOffsetDeg, double manualDirection) {
         AimResult result = new AimResult();
+        result.yawOffsetDeg = yawOffsetDeg;
         double dt = calculateDtSeconds();
+        double controlDt = dt > 0
+                ? Math.min(dt, Math.max(0.001, TURRET_CONTROL_MAX_DT_S))
+                : 0.02;
+        boolean manual = Double.isFinite(manualDirection) && manualDirection != 0;
 
         // Pinpoint reports the robot center. Rotate the rearward robot-frame
         // offset into field coordinates to aim from the actual turret pivot.
@@ -118,7 +168,11 @@ public class Turret {
         double targetVectorX = targetX - turretX;
         double targetVectorY = targetY - turretY;
         result.distance = Math.hypot(targetVectorX, targetVectorY);
-        if (!Double.isFinite(result.distance) || result.distance < 0.1) {
+        if (!Double.isFinite(result.distance) || result.distance < 0.1
+                || !Double.isFinite(headingDeg) || !Double.isFinite(omegaDegPerSec)) {
+            // Manual movement remains available without a usable geometric target;
+            // there is no valid reference from which to learn an offset in this case.
+            if (manual) return manualTurn(result, manualDirection, controlDt, Double.NaN);
             center();
             return result;
         }
@@ -139,14 +193,16 @@ public class Turret {
         double targetAngle = normalizeDeg(relativeAngle + feedforward);
         result.targetTurretAngleDeg = targetAngle;
 
+        if (manual) {
+            return manualTurn(result, manualDirection, controlDt,
+                    normalizeDeg(absoluteYaw - normalizeDeg(headingDeg) + feedforward));
+        }
+
         if (!isAngleSafe(targetAngle)) {
             center();
             return result;
         }
 
-        double controlDt = dt > 0
-                ? Math.min(dt, Math.max(0.001, TURRET_CONTROL_MAX_DT_S))
-                : 0.02;
         double nearestEquivalent = filteredTargetAngle
                 + normalizeDeg(targetAngle - filteredTargetAngle);
         result.wrapProtected = nearestEquivalent < TURRET_MIN_SAFE_ANGLE
@@ -167,6 +223,31 @@ public class Turret {
         result.aimErrorDeg = normalizeDeg(targetAngle - filteredTargetAngle);
         commandTurretAngle(filteredTargetAngle);
         return result;
+    }
+
+    private AimResult manualTurn(AimResult result, double direction,
+                                  double dt, double automaticAngle) {
+        double nextAngle = Range.clip(filteredTargetAngle
+                        + Range.clip(direction, -1, 1)
+                        * Math.max(0, MANUAL_TURN_RATE_DEG_PER_SEC) * dt,
+                TURRET_MIN_SAFE_ANGLE, TURRET_MAX_SAFE_ANGLE);
+        if (isAngleSafe(nextAngle)) filteredTargetAngle = nextAngle;
+        result.manualOverride = true;
+        result.hasTarget = Double.isFinite(automaticAngle);
+        if (result.hasTarget) {
+            result.yawOffsetDeg = normalizeDeg(filteredTargetAngle - automaticAngle);
+        }
+        result.targetTurretAngleDeg = filteredTargetAngle;
+        result.turretAngleDeg = filteredTargetAngle;
+        commandTurretAngle(filteredTargetAngle);
+        return result;
+    }
+
+    /** 固定角度模式：松手保持，按键只改变车身相对角度，不计算目标方位。 */
+    public AimResult updateManual(double direction) {
+        double dt = calculateDtSeconds();
+        double controlDt = dt > 0 ? Math.min(dt, Math.max(0.001, TURRET_CONTROL_MAX_DT_S)) : 0.02;
+        return manualTurn(new AimResult(), direction, controlDt, Double.NaN);
     }
 
     public void center() {

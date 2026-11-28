@@ -33,6 +33,26 @@ public class ManualOpMode extends LinearOpMode {
         return false;
     }
 
+    protected void prepareShooter(Shoot shooter, boolean localizationReady) {
+        if (localizationReady) shooter.prepareBoardForCurrentTarget();
+    }
+
+    protected void initShooter(Shoot shooter) {
+        shooter.init(hardwareMap);
+    }
+
+    protected void updateShooter(Shoot shooter) {
+        shooter.update(telemetry, gamepad1.y, gamepad1.b);
+    }
+
+    protected double drivePowerScale() {
+        return gamepad1.xWasPressed() ? 0.5 : 1.0;
+    }
+
+    protected String turretControlHint() {
+        return "炮塔：按住 Y 逆时针 / B 顺时针，松开保留修正；Y+B 清除修正";
+    }
+
     @Override
     public void runOpMode() {
         // initialize
@@ -55,10 +75,10 @@ public class ManualOpMode extends LinearOpMode {
 
         localization.init(hardwareMap);
         intake.init(hardwareMap);
-        shoot.init(hardwareMap);
+        initShooter(shoot);
         shoot.gateClose();
         localization.update();
-        if (localization.isReady()) shoot.prepareBoardForCurrentTarget();
+        prepareShooter(shoot, localization.isReady());
 
 
         IMU imu = null;
@@ -72,12 +92,20 @@ public class ManualOpMode extends LinearOpMode {
         telemetry.addData("Status", "已初始化，等待开始");
         telemetry.addLine(imu == null ? "有头模式" : "无头模式：A 重设前方");
         telemetry.addLine("按住 L1 吐球，松开停止");
+        telemetry.addLine(turretControlHint());
         telemetry.update();
 
-        waitForStart();
+        while (opModeInInit()) {
+            localization.update();
+            prepareShooter(shoot, localization.isReady());
+            if (localization.isReady()) shoot.updateAiming(telemetry);
+            telemetry.addData("Status", "等待开始，沿用 PP 坐标");
+            telemetry.update();
+            idle();
+        }
         if (isStopRequested()) return;
         localization.update();
-        if (localization.isReady()) shoot.prepareBoardForCurrentTarget();
+        prepareShooter(shoot, localization.isReady());
         if (imu != null) imu.resetYaw();
         timer.reset();
 
@@ -101,17 +129,11 @@ public class ManualOpMode extends LinearOpMode {
             double d = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1.0);
 
             //Setpower
-            if (gamepad1.xWasPressed()){
-                leftFront.setPower((y + x + rx) / d /2);
-                rightFront.setPower((y - x - rx) / d /2) ;
-                leftBack.setPower((y - x + rx) / d /2);
-                rightBack.setPower((y + x - rx) / d /2);
-            } else {
-                leftFront.setPower((y + x + rx) / d);
-                rightFront.setPower((y - x - rx) / d) ;
-                leftBack.setPower((y - x + rx) / d);
-                rightBack.setPower((y + x - rx) / d);
-            }
+            double driveScale = drivePowerScale();
+            leftFront.setPower((y + x + rx) / d * driveScale);
+            rightFront.setPower((y - x - rx) / d * driveScale);
+            leftBack.setPower((y - x + rx) / d * driveScale);
+            rightBack.setPower((y + x - rx) / d * driveScale);
 
 
             telemetry.addData("Forward y", "%.2f", y);
@@ -121,7 +143,7 @@ public class ManualOpMode extends LinearOpMode {
                     pose.getX(DistanceUnit.INCH), pose.getY(DistanceUnit.INCH),
                     pose.getHeading(AngleUnit.DEGREES));
             telemetry.addData("Pinpoint", localization.getDriver().getDeviceStatus());
-            shoot.update(telemetry);
+            updateShooter(shoot);
 
             if(gamepad1.rightTriggerWasPressed() && !ONSHOOT) {
                 shoottime = timer.seconds();

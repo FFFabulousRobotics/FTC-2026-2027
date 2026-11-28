@@ -32,7 +32,7 @@ public class NewBeeAuto extends OpMode {
 
     @Override
     public void init() {
-        shoot.init(hardwareMap);
+        shoot.init(hardwareMap, false);
         intake.init(hardwareMap);
         follower = Constants.createFollower(hardwareMap);
         localization.initAuto(hardwareMap, new Pose(0, 0, 0));
@@ -117,5 +117,6 @@ public class NewBeeAuto extends OpMode {
         follower.breakFollowing();
         intake.stop();
         shoot.stop();
+        shoot.saveAimingForTeleOp();
     }
 }

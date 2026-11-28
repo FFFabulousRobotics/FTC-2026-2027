@@ -47,19 +47,77 @@ public class Shoot {
     private long lastVelocityUpdateNanos;
     private ServoImplEx board;
     private ServoImplEx gate;
-    private final Turret turret = new Turret();
-    private final MovingShotController movingShotController = new MovingShotController();
+    private Turret turret = new Turret();
+    private MovingShotController movingShotController = new MovingShotController();
+    // 两个目标分别保留人工修正；自动结束时可接续给手动，不修改坐标。
+    private double[] turretYawTrimDeg = new double[2];
+    private static AimHandoff pendingAimHandoff;
+    private static Pose handedOffGoal;
+    private static boolean handoffRightRegion;
+    private static class AimHandoff {
+        final Turret turret;
+        final MovingShotController movingShotController;
+        final double[] trim;
+        final Pose target;
+        final boolean rightRegion;
+        AimHandoff(Shoot shoot) {
+            turret = shoot.turret;
+            movingShotController = shoot.movingShotController;
+            trim = shoot.turretYawTrimDeg;
+            target = goal;
+            rightRegion = pp.getPosX(DistanceUnit.INCH) > Position.MIDDLE;
+        }
+    }
+    private boolean fixedShotSettings;
+    private boolean fixedTurret;
+    private boolean turretLockedAtCenter;
+    private double fixedShotVelocity;
+    private double fixedBoardPosition = Double.NaN;
     public static Pose goal;
 
     public void init(HardwareMap hardwareMap) {
+        init(hardwareMap, true);
+    }
+
+    /** Static Manual：背板不初始化，云台两个舵机上电锁在 0.5。 */
+    public void initStatic(HardwareMap hardwareMap) {
+        turretLockedAtCenter = true;
+        init(hardwareMap, false, false);
+    }
+
+    public void init(HardwareMap hardwareMap, boolean restoreAutoAim) {
+        init(hardwareMap, restoreAutoAim, true);
+    }
+
+    public void init(HardwareMap hardwareMap, boolean restoreAutoAim, boolean initializeBoard) {
         initFlywheels(hardwareMap);
-        pp = hardwareMap.get(GoBildaPinpointDriver.class, "pp");
         board = hardwareMap.get(ServoImplEx.class, "board");
-        initBoard(board);
+        if (initializeBoard) initBoard(board);
         gate = hardwareMap.get(ServoImplEx.class, "gate");
         gate.setPwmRange(new PwmControl.PwmRange(500, 2500));
         gateClose();
-        turret.init(hardwareMap);
+        initAiming(hardwareMap, restoreAutoAim);
+    }
+
+    /** 只绑定 PP 和炮塔；LEAVE 自动不需要初始化飞轮、背板或进球机构。 */
+    public void initAiming(HardwareMap hardwareMap, boolean restoreAutoAim) {
+        pp = hardwareMap.get(GoBildaPinpointDriver.class, "pp");
+        AimHandoff handoff = restoreAutoAim ? pendingAimHandoff : null;
+        pendingAimHandoff = null;
+        handedOffGoal = handoff == null ? null : handoff.target;
+        if (handoff != null) {
+            handoffRightRegion = handoff.rightRegion;
+            turret = handoff.turret;
+            movingShotController = handoff.movingShotController;
+            turretYawTrimDeg = handoff.trim;
+        }
+        if (turretLockedAtCenter) turret.initLocked(hardwareMap);
+        else turret.init(hardwareMap, handoff != null);
+    }
+
+    /** RC 进程内一次性接续，PP 仍保留硬件上的实际场地坐标。 */
+    public void saveAimingForTeleOp() {
+        pendingAimHandoff = new AimHandoff(this);
     }
 
     /** 供独立调速测试使用，仅初始化两个飞轮。 */
@@ -87,8 +145,33 @@ public class Shoot {
 
     /** 手动模式初始化/开始时，按当前定位到所选射击框的距离设置背板。 */
     public double prepareBoardForCurrentTarget() {
+        if (fixedShotSettings) {
+            if (!Double.isFinite(fixedBoardPosition)) return board.getPosition();
+            board.setPosition(fixedBoardPosition);
+            return fixedBoardPosition;
+        }
         target();
         return angle(distance());
+    }
+
+    /** 仅当前 Shoot 实例使用固定射击参数，炮塔仍按原逻辑瞄准和人工修正。 */
+    public void useFixedShotSettings(double velocityTicksPerSecond, double boardPosition) {
+        fixedShotSettings = true;
+        fixedShotVelocity = Range.clip(velocityTicksPerSecond, 0, MAX_TARGET_VELOCITY_TICKS_S);
+        fixedBoardPosition = Range.clip(boardPosition, 0, 1);
+    }
+
+    public void useFixedShotVelocity(double velocityTicksPerSecond) {
+        fixedShotSettings = true;
+        fixedShotVelocity = Range.clip(velocityTicksPerSecond, 0, MAX_TARGET_VELOCITY_TICKS_S);
+    }
+
+    public void useFixedTurret() {
+        fixedTurret = true;
+    }
+
+    public double getBoardPosition() {
+        return board.getPosition();
     }
 
     public void gateOpen() {
@@ -109,7 +192,14 @@ public class Shoot {
     }
 
     public static Pose target() {
-        if(pp.getPosX(DistanceUnit.INCH) > Position.MIDDLE) goal = Position.SHOOT_POSE_2;
+        boolean rightRegion = pp.getPosX(DistanceUnit.INCH) > Position.MIDDLE;
+        // 接手时沿用自动最后的目标；跨过原来的分区线后恢复原选框规则。
+        if (handedOffGoal != null && rightRegion == handoffRightRegion) {
+            goal = handedOffGoal;
+            return goal;
+        }
+        handedOffGoal = null;
+        if(rightRegion) goal = Position.SHOOT_POSE_2;
         else goal = Position.SHOOT_POSE_1;
         return goal;
     }
@@ -206,7 +296,46 @@ public class Shoot {
     }
 
     public void update(Telemetry telemetry, Pose target) {
+        update(telemetry, target, 0.0, false);
+    }
+
+    /** 正式手动模式：Y 逆时针、B 顺时针；同时按下清除两个目标的人工修正。 */
+    public void update(Telemetry telemetry, boolean turretLeft, boolean turretRight) {
+        update(telemetry, target(), (turretLeft ? 1.0 : 0.0) - (turretRight ? 1.0 : 0.0),
+                turretLeft && turretRight);
+    }
+
+    private void update(Telemetry telemetry, Pose target, double manualDirection, boolean clearTrim) {
+        MovingShotController.Result movingShot = updateAiming(telemetry, target, manualDirection, clearTrim);
+        double targetVelocity;
+        double boardPosition;
+        if (fixedShotSettings) {
+            setVelocity(fixedShotVelocity);
+            targetVelocity = fixedShotVelocity;
+            boardPosition = Double.isFinite(fixedBoardPosition) ? fixedBoardPosition : board.getPosition();
+            if (Double.isFinite(fixedBoardPosition)) board.setPosition(boardPosition);
+        } else {
+            targetVelocity = velocity(movingShot.shootDistance);
+            boardPosition = angle(movingShot.shootDistance);
+        }
+        telemetry.addData("velocity", targetVelocity);
+        telemetry.addData("right measured velocity (ticks/s)", measuredVelocity);
+        telemetry.addData("flywheel power (both)", flywheelPower);
+        telemetry.addData("angle", boardPosition);
+    }
+
+    /** 外部先更新定位；仅对准并添加 telemetry，绝不启动飞轮或进球。 */
+    public void updateAiming(Telemetry telemetry) {
+        updateAiming(telemetry, target(), 0.0, false);
+    }
+
+    private MovingShotController.Result updateAiming(Telemetry telemetry, Pose target,
+                                                     double manualDirection, boolean clearTrim) {
         goal = target;
+        int trimIndex = target == Position.SHOOT_POSE_2 ? 1 : 0;
+        if (clearTrim) {
+            turretYawTrimDeg[0] = turretYawTrimDeg[1] = 0.0;
+        }
         // 外部每轮先 pp.update()，这里统一使用这一次读取的定位数据。
         double robotX = pp.getPosX(DistanceUnit.INCH);
         double robotY = pp.getPosY(DistanceUnit.INCH);
@@ -217,22 +346,34 @@ public class Shoot {
         MovingShotController.Result movingShot = movingShotController.update(
                 robotX, robotY, goal.getX(), goal.getY(),
                 pp.getVelX(DistanceUnit.INCH), pp.getVelY(DistanceUnit.INCH));
-        Turret.AimResult aim = turret.update(robotX, robotY, heading, omega,
-                movingShot.aimTargetX, movingShot.aimTargetY, 0.0);
-        double targetVelocity = velocity(movingShot.shootDistance);
-        double boardPosition = angle(movingShot.shootDistance);
+        Turret.AimResult aim;
+        if (turretLockedAtCenter) {
+            turret.holdServoCenter();
+            aim = new Turret.AimResult();
+        } else if (fixedTurret) {
+            if (clearTrim) turret.center();
+            aim = turret.updateManual(manualDirection);
+        } else {
+            aim = turret.update(robotX, robotY, heading, omega,
+                    movingShot.aimTargetX, movingShot.aimTargetY,
+                    turretYawTrimDeg[trimIndex], manualDirection);
+        }
+        if (aim.manualOverride && aim.hasTarget) {
+            turretYawTrimDeg[trimIndex] = aim.yawOffsetDeg;
+        }
         telemetry.addData("distance (in)", Math.hypot(goal.getX() - robotX, goal.getY() - robotY));
         telemetry.addData("shot distance (in)", movingShot.shootDistance);
-        telemetry.addData("velocity", targetVelocity);
-        telemetry.addData("right measured velocity (ticks/s)", measuredVelocity);
-        telemetry.addData("flywheel power (both)", flywheelPower);
-        telemetry.addData("angle", boardPosition);
         telemetry.addData("moving shot", movingShot.active ? "ON" : "STATIC");
         telemetry.addData("moving velocity (in/s)", "%.1f, %.1f",
                 movingShot.usedVelocityX, movingShot.usedVelocityY);
         telemetry.addData("moving correction (deg)", movingShot.headingCorrectionDeg);
         telemetry.addData("turret (deg)", "target %.1f | command %.1f",
                 aim.targetTurretAngleDeg, aim.turretAngleDeg);
+        telemetry.addData("turret control", turretLockedAtCenter ? "LOCKED 0.500 / 0.500"
+                : (fixedTurret ? "STATIC Y/B" : (aim.manualOverride ? "MANUAL Y/B" : "AUTO + TRIM")));
+        telemetry.addData("turret trim (deg)", "goal %d: %+.2f | 1 %+.2f / 2 %+.2f",
+                trimIndex + 1, turretYawTrimDeg[trimIndex], turretYawTrimDeg[0], turretYawTrimDeg[1]);
         // 只添加射击数据，由调用方统一刷新，避免底盘与射击信息交替覆盖。
+        return movingShot;
     }
 }
