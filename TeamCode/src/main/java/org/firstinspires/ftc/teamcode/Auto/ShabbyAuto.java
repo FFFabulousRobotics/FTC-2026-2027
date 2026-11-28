@@ -17,11 +17,11 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 
-/** 起点 1 向前，起点 2 向车身右侧走双倍距离；不启动射击或进球机构。 */
+/** 两个起点均向车身右侧移动，保持车身朝向；不启动射击或进球机构。 */
 @Configurable
 @Autonomous(name = "ShabbyAuto", group = "Auto")
 public class ShabbyAuto extends OpMode {
-    public static double LEAVE_DISTANCE_IN = 6.0;
+    public static double LEAVE_DISTANCE_IN = 19.0; // 48.26 cm，比原起点 2 的 12 inch 再增加 17.78 cm。
     public static double MAX_POWER = 0.25;
     public static double MOVE_TIMEOUT_S = 4.0;
     public static double READY_TIMEOUT_S = 3.0;
@@ -44,6 +44,7 @@ public class ShabbyAuto extends OpMode {
         follower.breakFollowing();
         localization.initAuto(hardwareMap, new Pose(0, 0, 0));
         shoot.initAiming(hardwareMap, false);
+        shoot.useGeometricAiming();
     }
 
     @Override
@@ -53,7 +54,7 @@ public class ShabbyAuto extends OpMode {
         localization.update();
         applySelectedStart();
         if (poseApplied && localization.isReady()) shoot.updateAiming(telemetry);
-        telemetry.addLine("A 起点 1 向前 / B 起点 2 向车身右侧（双倍距离）");
+        telemetry.addLine("A 起点 1 / B 起点 2；均向车身右侧移动");
         telemetry.addData("Start", selectedStart);
         Pose selected = selectedStart == 1 ? Position.START_POSE_1 : Position.START_POSE_2;
         if (selected != null) {
@@ -62,7 +63,7 @@ public class ShabbyAuto extends OpMode {
         } else {
             telemetry.addLine("所选 START_POSE 尚未填写");
         }
-        telemetry.addData("Leave distance (in)", LEAVE_DISTANCE_IN * (selectedStart == 2 ? 2.0 : 1.0));
+        telemetry.addData("Leave distance (in)", LEAVE_DISTANCE_IN);
         telemetry.addData("Pinpoint ready", localization.isReady());
         telemetry.update();
     }
@@ -79,8 +80,8 @@ public class ShabbyAuto extends OpMode {
         startPose = selectedStartPose();
         poseApplied = false;
         double heading = startPose.getHeading();
-        double moveDirection = selectedStart == 2 ? heading - Math.PI / 2.0 : heading;
-        double moveDistance = LEAVE_DISTANCE_IN * (selectedStart == 2 ? 2.0 : 1.0);
+        double moveDirection = heading - Math.PI / 2.0;
+        double moveDistance = LEAVE_DISTANCE_IN;
         leavePose = new Pose(startPose.getX() + moveDistance * Math.cos(moveDirection),
                 startPose.getY() + moveDistance * Math.sin(moveDirection), heading);
         follower.setMaxPower(Range.clip(MAX_POWER, 0, 1));
@@ -107,7 +108,7 @@ public class ShabbyAuto extends OpMode {
                     follower.followPath(path, false);
                     timer.reset();
                     state = State.MOVING;
-                    status = selectedStart == 2 ? "向右离墙（双倍距离）" : "向前离墙";
+                    status = "向右离墙";
                 } else if (timer.seconds() >= READY_TIMEOUT_S) {
                     finish(State.FAILED, "Pinpoint 等待超时，已停止");
                 }

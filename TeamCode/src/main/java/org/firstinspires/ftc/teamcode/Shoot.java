@@ -60,17 +60,20 @@ public class Shoot {
         final double[] trim;
         final Pose target;
         final boolean rightRegion;
+        final boolean geometricAimOnly;
         AimHandoff(Shoot shoot) {
             turret = shoot.turret;
             movingShotController = shoot.movingShotController;
             trim = shoot.turretYawTrimDeg;
             target = goal;
             rightRegion = pp.getPosX(DistanceUnit.INCH) > Position.MIDDLE;
+            geometricAimOnly = shoot.geometricAimOnly;
         }
     }
     private boolean fixedShotSettings;
     private boolean fixedTurret;
     private boolean turretLockedAtCenter;
+    private boolean geometricAimOnly;
     private double fixedShotVelocity;
     private double fixedBoardPosition = Double.NaN;
     public static Pose goal;
@@ -110,6 +113,7 @@ public class Shoot {
             turret = handoff.turret;
             movingShotController = handoff.movingShotController;
             turretYawTrimDeg = handoff.trim;
+            geometricAimOnly = handoff.geometricAimOnly;
         }
         if (turretLockedAtCenter) turret.initLocked(hardwareMap);
         else turret.init(hardwareMap, handoff != null);
@@ -118,6 +122,13 @@ public class Shoot {
     /** RC 进程内一次性接续，PP 仍保留硬件上的实际场地坐标。 */
     public void saveAimingForTeleOp() {
         pendingAimHandoff = new AimHandoff(this);
+    }
+
+    /** LEAVE 自动只做几何对准，不把低速定位噪声放大成跑打提前量。 */
+    public void useGeometricAiming() {
+        geometricAimOnly = true;
+        movingShotController = new MovingShotController();
+        turret.setAimDeadbandDeg(0.4);
     }
 
     /** 供独立调速测试使用，仅初始化两个飞轮。 */
@@ -329,6 +340,10 @@ public class Shoot {
         updateAiming(telemetry, target(), 0.0, false);
     }
 
+    public void updateAiming(Telemetry telemetry, Pose target) {
+        updateAiming(telemetry, target, 0.0, false);
+    }
+
     private MovingShotController.Result updateAiming(Telemetry telemetry, Pose target,
                                                      double manualDirection, boolean clearTrim) {
         goal = target;
@@ -345,7 +360,8 @@ public class Shoot {
         // Turret.update 内部仍使用炮塔轴心偏移瞄准。
         MovingShotController.Result movingShot = movingShotController.update(
                 robotX, robotY, goal.getX(), goal.getY(),
-                pp.getVelX(DistanceUnit.INCH), pp.getVelY(DistanceUnit.INCH));
+                geometricAimOnly ? 0.0 : pp.getVelX(DistanceUnit.INCH),
+                geometricAimOnly ? 0.0 : pp.getVelY(DistanceUnit.INCH));
         Turret.AimResult aim;
         if (turretLockedAtCenter) {
             turret.holdServoCenter();
@@ -354,7 +370,7 @@ public class Shoot {
             if (clearTrim) turret.center();
             aim = turret.updateManual(manualDirection);
         } else {
-            aim = turret.update(robotX, robotY, heading, omega,
+            aim = turret.update(robotX, robotY, heading, geometricAimOnly ? 0.0 : omega,
                     movingShot.aimTargetX, movingShot.aimTargetY,
                     turretYawTrimDeg[trimIndex], manualDirection);
         }
@@ -370,7 +386,8 @@ public class Shoot {
         telemetry.addData("turret (deg)", "target %.1f | command %.1f",
                 aim.targetTurretAngleDeg, aim.turretAngleDeg);
         telemetry.addData("turret control", turretLockedAtCenter ? "LOCKED 0.500 / 0.500"
-                : (fixedTurret ? "STATIC Y/B" : (aim.manualOverride ? "MANUAL Y/B" : "AUTO + TRIM")));
+                : (fixedTurret ? "STATIC Y/B" : (aim.manualOverride ? "MANUAL Y/B"
+                : (geometricAimOnly ? "GEOMETRIC + TRIM" : "AUTO + TRIM"))));
         telemetry.addData("turret trim (deg)", "goal %d: %+.2f | 1 %+.2f / 2 %+.2f",
                 trimIndex + 1, turretYawTrimDeg[trimIndex], turretYawTrimDeg[0], turretYawTrimDeg[1]);
         // 只添加射击数据，由调用方统一刷新，避免底盘与射击信息交替覆盖。

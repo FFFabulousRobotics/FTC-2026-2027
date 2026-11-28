@@ -16,7 +16,7 @@ public class Intake {
 
     public void intake() {
         intake.setPower(MAX_POWER);
-        trans.setPower(0.0);
+        trans.setPower(1.0);
     }
 
     public void feed() {

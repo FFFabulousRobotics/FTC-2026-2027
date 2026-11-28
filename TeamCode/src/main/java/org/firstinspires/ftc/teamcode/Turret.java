@@ -61,6 +61,7 @@ public class Turret {
     private double filteredOmega;
     private boolean omegaFilterInitialized;
     private double filteredTargetAngle;
+    private double aimDeadbandDeg;
     private long lastUpdateNanos;
     private double lastServoPosition = 0.5;
     private double lastServo1Position = 0.5;
@@ -70,6 +71,10 @@ public class Turret {
 
     public void init(HardwareMap hardwareMap) {
         init(hardwareMap, false);
+    }
+
+    public void setAimDeadbandDeg(double degrees) {
+        aimDeadbandDeg = Math.max(0, degrees);
     }
 
     /** Static Manual：两个舵机直接锁在 0.5，不叠加零位或预紧补偿。 */
@@ -213,6 +218,9 @@ public class Turret {
         double alpha = SERVO_FILTER_TAU_S > 0
                 ? 1.0 - Math.exp(-controlDt / SERVO_FILTER_TAU_S) : 1.0;
         double filteredStep = (servoReachableTarget - filteredTargetAngle) * alpha;
+        if (Math.abs(servoReachableTarget - filteredTargetAngle) <= aimDeadbandDeg) {
+            filteredStep = 0;
+        }
         double maxStep = Math.max(0.0, TURRET_MAX_SLEW_RATE_DEG_PER_SEC) * controlDt;
         filteredTargetAngle = Range.clip(
                 filteredTargetAngle + Range.clip(filteredStep, -maxStep, maxStep),
